@@ -1,15 +1,16 @@
 import { router } from 'expo-router';
 import { ReactNode, useCallback, useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Button from '../components/Button';
 import { HeadphonesIcon, MicIcon } from '../components/icons';
 import ScreenHeader from '../components/ScreenHeader';
 import StateView from '../components/StateView';
 import useAsyncData from '../hooks/useAsyncData';
+import useBottomSpacing from '../hooks/useBottomSpacing';
 import useResponsive from '../hooks/useResponsive';
 import examService from '../services/exam';
 import { theme } from '../theme';
+import Kicker from '../components/Kicker';
 
 const { colors, fonts, typography } = theme;
 
@@ -18,7 +19,7 @@ interface ExamIntroScreenProps {
 }
 
 export default function ExamIntroScreen({ examId }: ExamIntroScreenProps) {
-  const insets = useSafeAreaInsets();
+  const bottom = useBottomSpacing();
   const { isTablet } = useResponsive();
   const styles = useMemo(() => createStyles(isTablet), [isTablet]);
 
@@ -54,14 +55,14 @@ export default function ExamIntroScreen({ examId }: ExamIntroScreenProps) {
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.inner}>
           <View style={styles.heading}>
-            <Text style={typography.kickerAccent}>{exam.kicker}</Text>
+            <Kicker accent>{exam.kicker}</Kicker>
             <Text style={styles.title} accessibilityRole="header">{exam.title}</Text>
             <Text style={styles.description}>{exam.description}</Text>
           </View>
 
           {!!exam.teacherNote && (
             <View style={styles.note}>
-              <Text style={typography.kicker}>Note from your teacher</Text>
+              <Kicker>Note from your teacher</Kicker>
               <Text style={styles.noteText}>{exam.teacherNote}</Text>
             </View>
           )}
@@ -80,7 +81,7 @@ export default function ExamIntroScreen({ examId }: ExamIntroScreenProps) {
 
           {(exam.needsHeadphones || exam.needsMicrophone) && (
             <View style={styles.checks}>
-              <Text style={typography.kicker}>Device check</Text>
+              <Kicker>Device check</Kicker>
               <View style={styles.checkGrid}>
                 {exam.needsHeadphones && (
                   <DeviceCheck
@@ -110,7 +111,7 @@ export default function ExamIntroScreen({ examId }: ExamIntroScreenProps) {
         </View>
       </ScrollView>
 
-      <View style={[styles.footer, { paddingBottom: Math.max(12, insets.bottom) }]}>
+      <View style={[styles.footer, { paddingBottom: bottom(12) }]}>
         {!checksDone && <Text style={styles.footerHint}>Check your headphones and microphone first.</Text>}
         <Button
           label={isContinue ? 'Continue test' : 'Start test · timer begins'}

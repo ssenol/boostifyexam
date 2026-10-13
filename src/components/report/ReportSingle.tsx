@@ -2,6 +2,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { theme } from '../../theme';
 import { CEFR_LEVELS, type ExamReport } from '../../types/exam';
 import Tag from '../Tag';
+import Kicker from '../Kicker';
 
 const { colors, fonts, typography } = theme;
 
@@ -11,7 +12,7 @@ export default function ReportSingle({ report, isTablet }: { report: ExamReport;
     <View style={styles.wrap}>
       <View style={styles.top}>
         <View style={styles.topCol}>
-          <Text style={typography.kickerAccent}>{`${report.title} · ${report.dateLabel}`}</Text>
+          <Kicker accent>{`${report.title} · ${report.dateLabel}`}</Kicker>
           <View style={styles.levelRow}>
             <Text style={[styles.level, { fontSize: isTablet ? 80 : 64, lineHeight: isTablet ? 74 : 60 }]}>{report.level}</Text>
             <Tag label={report.status} style={styles.levelTag} />
@@ -20,11 +21,11 @@ export default function ReportSingle({ report, isTablet }: { report: ExamReport;
         </View>
         <View style={[styles.topCol, styles.stats]}>
           <View style={styles.stat}>
-            <Text style={typography.kicker}>Scale score</Text>
+            <Kicker>Scale score</Kicker>
             <Text style={styles.statValue}>{`${report.scaleScore} / 100`}</Text>
           </View>
           <View style={[styles.stat, styles.statDivided]}>
-            <Text style={typography.kicker}>Next level</Text>
+            <Kicker>Next level</Kicker>
             <Text style={styles.statValue}>{report.nextLevel}</Text>
           </View>
         </View>
@@ -76,7 +77,7 @@ export default function ReportSingle({ report, isTablet }: { report: ExamReport;
               <Text style={typography.muted}>{f.score}</Text>
             </View>
             <View style={styles.list}>
-              <Text style={typography.kicker}>Strengths</Text>
+              <Kicker>Strengths</Kicker>
               {f.strengths.map((g) => (
                 <View key={g} style={styles.listRow}>
                   <Text style={styles.bullet}>+</Text>
@@ -85,7 +86,7 @@ export default function ReportSingle({ report, isTablet }: { report: ExamReport;
               ))}
             </View>
             <View style={styles.list}>
-              <Text style={typography.kicker}>To improve</Text>
+              <Kicker>To improve</Kicker>
               {f.improvements.map((g) => (
                 <View key={g} style={styles.listRow}>
                   <Text style={[styles.bullet, { color: colors.accent700 }]}>→</Text>
@@ -94,7 +95,7 @@ export default function ReportSingle({ report, isTablet }: { report: ExamReport;
               ))}
             </View>
             <View style={styles.source}>
-              <Text style={typography.kicker}>{f.sourceLabel}</Text>
+              <Kicker>{f.sourceLabel}</Kicker>
               <Text style={styles.sourceText}>{f.source}</Text>
             </View>
           </View>

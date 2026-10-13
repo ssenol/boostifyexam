@@ -1,13 +1,15 @@
 import { StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import useBottomSpacing from '../../hooks/useBottomSpacing';
 import type { SaveState } from '../../hooks/useExamSession';
 import { theme } from '../../theme';
 import type { SectionInfo, SectionKey } from '../../types/exam';
 import Button from '../Button';
 import { CloseIcon, LockIcon } from '../icons';
 import Tag from '../Tag';
+import Kicker from '../Kicker';
 
-const { colors, fonts, typography } = theme;
+const { colors, fonts } = theme;
 
 // Son 5 dakikada süre turuncuya döner
 export const LOW_TIME_SECONDS = 5 * 60;
@@ -75,13 +77,13 @@ export function ExamTopBar(props: ExamChromeProps) {
           <Tag label={props.skill} style={topStyles.skillTag} />
         </View>
         <View style={topStyles.timeCol}>
-          <Text style={[typography.kicker, topStyles.timeKicker]}>Time left</Text>
+          <Kicker style={topStyles.timeKicker}>Time left</Kicker>
           <Text style={[topStyles.time, props.timeLow && topStyles.timeLow]}>{props.timeText}</Text>
         </View>
       </View>
       <View style={topStyles.row2}>
         <View style={topStyles.numberRow}>
-          <Text style={typography.kicker}>{props.numberKicker}</Text>
+          <Kicker>{props.numberKicker}</Kicker>
           <Text style={topStyles.number}>{props.numberValue}</Text>
         </View>
         <View style={topStyles.steps}>
@@ -101,11 +103,12 @@ export function ExamTopBar(props: ExamChromeProps) {
 // Tablet: solda 300px'lik panel (büyük soru numarası, süre, bölüm listesi, bağlantı durumu)
 export function ExamSidePanel(props: ExamChromeProps) {
   const insets = useSafeAreaInsets();
+  const bottom = useBottomSpacing();
   const states = stepStates(props.sections, props.currentSection);
   const conn = CONNECTION[props.saveState];
 
   return (
-    <View style={[sideStyles.panel, { paddingTop: Math.max(20, insets.top), paddingBottom: Math.max(20, insets.bottom) }]}>
+    <View style={[sideStyles.panel, { paddingTop: Math.max(20, insets.top), paddingBottom: bottom(20) }]}>
       <View style={sideStyles.topRow}>
         <Button label="Pause" variant="secondary" size="compact" leading={<CloseIcon size={18} />} onPress={props.onPause} />
         <View style={sideStyles.secure}>
@@ -117,13 +120,13 @@ export function ExamSidePanel(props: ExamChromeProps) {
       <Text style={sideStyles.examTitle}>{props.examTitle}</Text>
 
       <View style={sideStyles.numberBlock}>
-        <Text style={typography.kicker}>{props.numberKicker}</Text>
+        <Kicker>{props.numberKicker}</Kicker>
         <Text style={sideStyles.number}>{props.numberValue}</Text>
         <Tag label={props.skill} style={sideStyles.skillTag} />
       </View>
 
       <View style={sideStyles.timeBlock}>
-        <Text style={typography.kicker}>Time left</Text>
+        <Kicker>Time left</Kicker>
         <Text style={[sideStyles.time, props.timeLow && sideStyles.timeLow]}>{props.timeText}</Text>
         {props.timeLow && <Text style={sideStyles.lowNote}>Last 5 minutes. Your answer submits at 00:00.</Text>}
       </View>

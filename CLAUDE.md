@@ -116,7 +116,19 @@ Kişisel cihazda uygulama kilitlenemez; "Secure mode" = caydırma + tespit + sun
 ## Kod Kuralları
 
 - Yorumlar Türkçe, arayüz metinleri İngilizce.
-- Alt kenar boşlukları sabit sayı olmaz, `useSafeAreaInsets()` ile hesaplanır.
+- Alt kenar boşlukları sabit sayı olmaz: `useBottomSpacing()` (`src/hooks/useBottomSpacing.ts`) → `bottom(min)` =
+  safe area + Android tablette dock payı (`theme.layout.androidTabletDockOffset`, 14). Doğrudan `insets.bottom` kullanmayın.
+- **Klavye:** Android edge-to-edge çizildiği için pencere klavyeyle küçülmez; klavye payı elle verilir.
+  - Sınav ekranı (`ExamSessionScreen`) `KeyboardAvoidingView` kullanmaz. `useKeyboardInset()` kutuyu pencere
+    koordinatında ölçer ve klavyenin üst kenarıyla karşılaştırır. Klavye açılınca yalnızca alt çubuk `translateY` ile
+    kaldırılır; içeriğe alttan boşluk eklenir.
+  - **ScrollView'ın boyunu değiştirmeyin.** Boyu küçülürse Android odaktaki alanı görünür tutmak için sayfayı kendiliğinden
+    kaydırır (`onSizeChanged`), `scrollsChildToFocus={false}` bunu durdurmaz. Alt çubuğun boyu da sabit kalmalı.
+  - `KeyboardAvoidingView`'ın Android `height` modunu kullanmayın. İlk yüksekliği sakladığı için cihaz döndürülünce titrer,
+    `flex: 0` verdiği için yatay satırda genişliği çöker. Ekranın kökündeyse (`y = 0`) `padding` modu iki platformda da
+    doğru çalışır (Login).
+- **Büyük harf metin:** `textTransform: 'uppercase'` kullanmayın. Cihaz diline uyuyor ve Türkçe cihazda "TİME LEFT"
+  çıkıyor. Bunun yerine `<Kicker>` ya da `toUpperCaseEn()` (`src/components/Kicker.tsx`) kullanın.
 - Native bağımlılık veya config plugin eklenince prebuild gerekir (dev client).
 
 ## Notlar

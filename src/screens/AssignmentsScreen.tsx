@@ -1,18 +1,19 @@
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Button from '../components/Button';
 import ScreenHeader from '../components/ScreenHeader';
 import StateView from '../components/StateView';
 import Tag from '../components/Tag';
 import useAsyncData from '../hooks/useAsyncData';
+import useBottomSpacing from '../hooks/useBottomSpacing';
 import useResponsive from '../hooks/useResponsive';
 import examService from '../services/exam';
 import { useAppDispatch } from '../store/hooks';
 import { theme } from '../theme';
 import type { CompletedExam, OpenExam, ProgressSeries, SeriesState } from '../types/exam';
 import { performLogout } from '../utils/logoutHelper';
+import Kicker, { toUpperCaseEn } from '../components/Kicker';
 
 const { colors, fonts, typography } = theme;
 
@@ -20,7 +21,7 @@ type Tab = 'open' | 'done';
 
 export default function AssignmentsScreen() {
   const dispatch = useAppDispatch();
-  const insets = useSafeAreaInsets();
+  const bottom = useBottomSpacing();
   const { isTablet } = useResponsive();
   const styles = useMemo(() => createStyles(isTablet), [isTablet]);
   const [tab, setTab] = useState<Tab>('open');
@@ -57,7 +58,7 @@ export default function AssignmentsScreen() {
     <View style={styles.root}>
       {header}
       <ScrollView
-        contentContainerStyle={[styles.content, { paddingBottom: Math.max(32, insets.bottom + 16) }]}
+        contentContainerStyle={[styles.content, { paddingBottom: bottom(16) + 16 }]}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={reload} tintColor={colors.accent} />}
       >
         <View style={styles.titleBlock}>
@@ -110,7 +111,7 @@ function OpenExamCard({ exam }: { exam: OpenExam }) {
     <View style={cardStyles.openCard}>
       {/* TODO: Kart görseli API'den gelecek */}
       <View style={cardStyles.cardImage}>
-        <Text style={cardStyles.placeholderLabel}>Card image</Text>
+        <Text style={cardStyles.placeholderLabel}>{toUpperCaseEn('Card image')}</Text>
       </View>
       <View style={cardStyles.openBody}>
         <View style={cardStyles.tags}>
@@ -121,11 +122,11 @@ function OpenExamCard({ exam }: { exam: OpenExam }) {
         <Text style={cardStyles.openTitle}>{exam.title}</Text>
         <View style={cardStyles.facts}>
           <View style={cardStyles.fact}>
-            <Text style={typography.kicker}>Closes</Text>
+            <Kicker>Closes</Kicker>
             <Text style={cardStyles.factValue}>{exam.closesLabel}</Text>
           </View>
           <View style={[cardStyles.fact, cardStyles.factDivided]}>
-            <Text style={typography.kicker}>Duration</Text>
+            <Kicker>Duration</Kicker>
             <Text style={cardStyles.factValue}>{exam.durationMinutes} minutes</Text>
           </View>
         </View>
@@ -164,7 +165,7 @@ function SeriesGrid({ series }: { series: ProgressSeries }) {
           <View key={item.id} style={seriesStyles.cell}>
             <View style={seriesStyles.stateRow}>
               <View style={[seriesStyles.dot, { backgroundColor: SERIES_DOT[item.state] }]} />
-              <Text style={typography.kicker}>{SERIES_STATE_LABEL[item.state]}</Text>
+              <Kicker>{SERIES_STATE_LABEL[item.state]}</Kicker>
             </View>
             <Text style={seriesStyles.short}>{item.short}</Text>
             <Text style={typography.muted}>{item.meta}</Text>
@@ -180,7 +181,7 @@ function CompletedCard({ exam, isTablet }: { exam: CompletedExam; isTablet: bool
     <View style={[cardStyles.doneCard, isTablet && cardStyles.doneCardTablet]}>
       <View style={cardStyles.doneTop}>
         <View style={cardStyles.thumb}>
-          <Text style={[cardStyles.placeholderLabel, { fontSize: 9 }]}>Image</Text>
+          <Text style={[cardStyles.placeholderLabel, { fontSize: 9 }]}>{toUpperCaseEn('Image')}</Text>
         </View>
         <View style={cardStyles.doneInfo}>
           <Tag label={exam.typeLabel} />
@@ -190,14 +191,14 @@ function CompletedCard({ exam, isTablet }: { exam: CompletedExam; isTablet: bool
       </View>
       <View style={cardStyles.doneFacts}>
         <View style={cardStyles.doneFact}>
-          <Text style={typography.kicker}>Level</Text>
+          <Kicker>Level</Kicker>
           <View style={cardStyles.levelRow}>
             <Text style={cardStyles.level}>{exam.level}</Text>
             <Tag label={exam.status} tone="neutral" />
           </View>
         </View>
         <View style={[cardStyles.doneFact, cardStyles.factDivided]}>
-          <Text style={typography.kicker}>{exam.change ? 'Change' : 'Starting level'}</Text>
+          <Kicker>{exam.change ? 'Change' : 'Starting level'}</Kicker>
           <Text style={cardStyles.change}>{exam.change ?? 'Baseline'}</Text>
         </View>
       </View>
@@ -291,7 +292,6 @@ const cardStyles = StyleSheet.create({
     fontFamily: fonts.regular,
     fontSize: 11,
     letterSpacing: 0.9,
-    textTransform: 'uppercase',
     color: colors.neutral800,
   },
   openBody: {

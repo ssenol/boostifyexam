@@ -1,12 +1,12 @@
 import { router } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ReportProgress from '../components/report/ReportProgress';
 import ReportSingle from '../components/report/ReportSingle';
 import ScreenHeader from '../components/ScreenHeader';
 import StateView from '../components/StateView';
 import useAsyncData from '../hooks/useAsyncData';
+import useBottomSpacing from '../hooks/useBottomSpacing';
 import useResponsive from '../hooks/useResponsive';
 import examService from '../services/exam';
 import { theme } from '../theme';
@@ -22,7 +22,7 @@ interface ReportScreenProps {
 }
 
 export default function ReportScreen({ examId, from }: ReportScreenProps) {
-  const insets = useSafeAreaInsets();
+  const bottom = useBottomSpacing();
   const { isTablet } = useResponsive();
   const styles = useMemo(() => createStyles(isTablet), [isTablet]);
   const [view, setView] = useState<View_>('single');
@@ -54,7 +54,7 @@ export default function ReportScreen({ examId, from }: ReportScreenProps) {
   return (
     <View style={styles.root}>
       {header}
-      <ScrollView contentContainerStyle={[styles.content, { paddingBottom: Math.max(40, insets.bottom + 16) }]}>
+      <ScrollView contentContainerStyle={[styles.content, { paddingBottom: bottom(24) + 16 }]}>
         <View style={styles.inner}>
           {report.data.hasProgress && (
             <View style={styles.toggle} accessibilityRole="tablist">

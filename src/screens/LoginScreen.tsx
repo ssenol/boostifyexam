@@ -1,10 +1,12 @@
 import { useMemo, useRef, useState } from 'react';
-import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, KeyboardAvoidingView, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path, Rect } from 'react-native-svg';
 import BrandMark from '../components/BrandMark';
 import Button from '../components/Button';
+import { toUpperCaseEn } from '../components/Kicker';
 import TextField from '../components/TextField';
+import useBottomSpacing from '../hooks/useBottomSpacing';
 import useResponsive from '../hooks/useResponsive';
 import authService from '../services/auth';
 import { useAppDispatch } from '../store/hooks';
@@ -26,6 +28,7 @@ const FACTS: [string, string][] = [
 export default function LoginScreen() {
   const dispatch = useAppDispatch();
   const insets = useSafeAreaInsets();
+  const bottom = useBottomSpacing();
   const { isTablet } = useResponsive();
   const styles = useMemo(() => createStyles(isTablet), [isTablet]);
 
@@ -70,7 +73,7 @@ export default function LoginScreen() {
       <BrandMark color={colors.bg} />
 
       <View style={styles.hero}>
-        <Text style={styles.kicker}>Placement · Progress</Text>
+        <Text style={styles.kicker}>{toUpperCaseEn('Placement · Progress')}</Text>
         <Text style={styles.heroTitle}>Find your level.</Text>
         <Text style={styles.heroText}>Adaptive English tests on the CEFR scale.</Text>
       </View>
@@ -78,7 +81,7 @@ export default function LoginScreen() {
       {isTablet && (
         <View style={styles.ladderWrap}>
           <View style={styles.ladderHeader}>
-            <Text style={styles.ladderKicker}>CEFR scale</Text>
+            <Text style={styles.ladderKicker}>{toUpperCaseEn('CEFR scale')}</Text>
             <Text style={styles.ladderNote}>Every test starts in the middle</Text>
           </View>
           <View style={styles.ladderBars}>
@@ -174,12 +177,14 @@ export default function LoginScreen() {
   );
 
   return (
-    <KeyboardAvoidingView style={styles.root} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    // Ekranın kökünde (y = 0) olduğu için "padding" iki platformda da doğru hesaplar. Android'in "height" modu ilk
+    // yüksekliği sakladığından cihaz döndürülünce yanlış çalışıyordu.
+    <KeyboardAvoidingView style={styles.root} behavior="padding">
       {isTablet ? (
         <View style={styles.tabletRow}>
           {panel}
           <ScrollView
-            contentContainerStyle={[styles.formScroll, { paddingBottom: Math.max(24, insets.bottom) }]}
+            contentContainerStyle={[styles.formScroll, { paddingBottom: bottom(24) }]}
             keyboardShouldPersistTaps="handled"
           >
             {form}
@@ -187,7 +192,7 @@ export default function LoginScreen() {
         </View>
       ) : (
         <ScrollView
-          contentContainerStyle={{ paddingBottom: Math.max(24, insets.bottom) }}
+          contentContainerStyle={{ paddingBottom: bottom(24) }}
           keyboardShouldPersistTaps="handled"
           bounces={false}
         >
@@ -226,7 +231,6 @@ const createStyles = (isTablet: boolean) => {
       fontFamily: fonts.semiBold,
       fontSize: 11,
       letterSpacing: 1.3,
-      textTransform: 'uppercase',
       color: colors.bg,
     },
     heroTitle: {
@@ -255,7 +259,6 @@ const createStyles = (isTablet: boolean) => {
       fontFamily: fonts.semiBold,
       fontSize: 12,
       letterSpacing: 1.4,
-      textTransform: 'uppercase',
       color: colors.bg,
     },
     ladderNote: {

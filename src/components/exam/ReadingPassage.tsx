@@ -1,8 +1,9 @@
 import { StyleSheet, Text, View } from 'react-native';
 import { theme } from '../../theme';
 import type { Passage } from '../../types/exam';
+import Kicker from '../Kicker';
 
-const { colors, fonts, typography } = theme;
+const { colors, fonts } = theme;
 
 interface ReadingPassageProps {
   passage: Passage;
@@ -14,7 +15,7 @@ interface ReadingPassageProps {
 export default function ReadingPassage({ passage, showKicker }: ReadingPassageProps) {
   return (
     <View>
-      {showKicker && <Text style={[typography.kicker, styles.kicker]}>Reading text</Text>}
+      {showKicker && <Kicker style={styles.kicker}>Reading text</Kicker>}
       <Text style={[styles.title, showKicker && styles.titleLarge]}>{passage.title}</Text>
       {passage.paragraphs.map((p) => (
         <Text key={p.n} style={styles.paragraph}>

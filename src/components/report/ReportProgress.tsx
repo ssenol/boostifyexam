@@ -1,8 +1,9 @@
 import { StyleSheet, Text, View } from 'react-native';
 import { theme } from '../../theme';
 import { CEFR_LEVELS, type ProgressReport } from '../../types/exam';
+import Kicker from '../Kicker';
 
-const { colors, fonts, typography } = theme;
+const { colors, fonts } = theme;
 
 // Grafikte her CEFR adımı 20px; toplam 10 adım = 200px
 const STEP_HEIGHT = 20;
@@ -24,7 +25,7 @@ export default function ReportProgress({ progress, isTablet }: { progress: Progr
   return (
     <View style={styles.wrap}>
       <View style={styles.head}>
-        <Text style={typography.kickerAccent}>{progress.title}</Text>
+        <Kicker accent>{progress.title}</Kicker>
         <Text style={[styles.headline, { fontSize: isTablet ? 80 : 64, lineHeight: isTablet ? 76 : 61 }]}>{headline}</Text>
         <Text style={styles.note}>{progress.note}</Text>
       </View>
@@ -32,7 +33,7 @@ export default function ReportProgress({ progress, isTablet }: { progress: Progr
       <View style={styles.stats}>
         {stats.map((s, i) => (
           <View key={s.label} style={[styles.stat, i > 0 && styles.statDivided]}>
-            <Text style={typography.kicker}>{s.label}</Text>
+            <Kicker>{s.label}</Kicker>
             <Text style={styles.statValue}>{s.value}</Text>
             <Text style={styles.statSub} numberOfLines={1}>{s.sub}</Text>
           </View>

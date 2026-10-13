@@ -6,9 +6,11 @@ import Button from '../components/Button';
 import StateView from '../components/StateView';
 import Tag from '../components/Tag';
 import useAsyncData from '../hooks/useAsyncData';
+import useBottomSpacing from '../hooks/useBottomSpacing';
 import useResponsive from '../hooks/useResponsive';
 import examService from '../services/exam';
 import { theme } from '../theme';
+import Kicker from '../components/Kicker';
 
 const { colors, fonts, typography } = theme;
 
@@ -18,6 +20,7 @@ interface ExamResultScreenProps {
 
 export default function ExamResultScreen({ examId }: ExamResultScreenProps) {
   const insets = useSafeAreaInsets();
+  const bottom = useBottomSpacing();
   const { isTablet } = useResponsive();
   const styles = useMemo(() => createStyles(isTablet), [isTablet]);
 
@@ -29,11 +32,11 @@ export default function ExamResultScreen({ examId }: ExamResultScreenProps) {
   return (
     <ScrollView
       style={styles.root}
-      contentContainerStyle={[styles.content, { paddingTop: Math.max(28, insets.top + 12), paddingBottom: Math.max(32, insets.bottom + 16) }]}
+      contentContainerStyle={[styles.content, { paddingTop: Math.max(28, insets.top + 12), paddingBottom: bottom(16) + 16 }]}
     >
       <View style={styles.columns}>
         <View style={styles.column}>
-          <Text style={typography.kickerAccent}>{`${result.typeLabel} · Completed`}</Text>
+          <Kicker accent>{`${result.typeLabel} · Completed`}</Kicker>
           <Text style={styles.levelLabel}>Your level</Text>
           <View style={styles.levelRow}>
             <Text style={styles.level}>{result.level}</Text>
@@ -46,14 +49,14 @@ export default function ExamResultScreen({ examId }: ExamResultScreenProps) {
         <View style={styles.column}>
           <View style={styles.stats}>
             <View style={styles.stat}>
-              <Text style={typography.kicker}>Scale score</Text>
+              <Kicker>Scale score</Kicker>
               <Text style={styles.statValue}>
                 {result.scaleScore}
                 <Text style={styles.statUnit}> / 100</Text>
               </Text>
             </View>
             <View style={[styles.stat, styles.statDivided]}>
-              <Text style={typography.kicker}>Answered</Text>
+              <Kicker>Answered</Kicker>
               <Text style={styles.statValue}>
                 {result.answeredCount}
                 <Text style={styles.statUnit}> questions</Text>

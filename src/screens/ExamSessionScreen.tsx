@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
 import { useKeepAwake } from 'expo-keep-awake';
 import { useEffect, useMemo, useState } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Button from '../components/Button';
 import Dialog, { DialogConfig } from '../components/Dialog';
@@ -16,8 +16,10 @@ import WritingTaskView from '../components/exam/WritingTaskView';
 import ScreenHeader from '../components/ScreenHeader';
 import StateView from '../components/StateView';
 import Toast, { useToast } from '../components/Toast';
+import useBottomSpacing from '../hooks/useBottomSpacing';
 import useExamGuard from '../hooks/useExamGuard';
 import useExamSession from '../hooks/useExamSession';
+import useKeyboardInset from '../hooks/useKeyboardInset';
 import useResponsive from '../hooks/useResponsive';
 import { useAppSelector } from '../store/hooks';
 import { selectCurrentUser } from '../store/slices/authSlice';
@@ -51,6 +53,8 @@ export default function ExamSessionScreen({ examId }: ExamSessionScreenProps) {
   const styles = useMemo(() => createStyles(isTablet), [isTablet]);
   const padX = isTablet ? theme.layout.padXTablet : theme.layout.padX;
   const toast = useToast();
+  const bottom = useBottomSpacing();
+  const { ref: keyboardRef, inset: keyboardInset, onLayout: onKeyboardAreaLayout } = useKeyboardInset();
 
   const [overlay, setOverlay] = useState<Overlay | null>(null);
   const [leftReason, setLeftReason] = useState('');
@@ -135,7 +139,7 @@ export default function ExamSessionScreen({ examId }: ExamSessionScreenProps) {
           busy={session.saveState === 'saving'}
           isTablet={isTablet}
         />
-        <Toast message={toast.message} bottom={Math.max(24, insets.bottom + 16)} padX={padX} />
+        <Toast message={toast.message} bottom={bottom(24) + 16} padX={padX} />
       </>
     );
   }
@@ -143,6 +147,8 @@ export default function ExamSessionScreen({ examId }: ExamSessionScreenProps) {
   if (!item) return <StateView loading />;
 
   const words = countWords(writingText);
+  const footerPadding = bottom(12);
+  const footerLift = keyboardInset > 0 ? Math.max(0, keyboardInset - (footerPadding - 12)) : 0;
 
   const next = () => {
     if (item.kind === 'choice') {
@@ -212,7 +218,10 @@ export default function ExamSessionScreen({ examId }: ExamSessionScreenProps) {
     <View style={[styles.root, isTablet && styles.rootTablet]}>
       {isTablet ? <ExamSidePanel {...chrome} /> : <ExamTopBar {...chrome} />}
 
-      <KeyboardAvoidingView style={styles.main} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      {/* Android edge-to-edge çizildiği için pencere klavyeyle küçülmez. Klavye açılınca yalnızca alt çubuk klavyenin
+          üstüne kaldırılır; ScrollView'ın boyu değişmez. Boyu küçülseydi Android odaktaki alanı görünür tutmak için sayfayı
+          kendiliğinden kaydırırdı (ScrollView.onSizeChanged). Sayfa olduğu yerde kalır, öğrenci kendisi kaydırır. */}
+      <View ref={keyboardRef} onLayout={onKeyboardAreaLayout} style={styles.main}>
         <View style={styles.body}>
           {showSidePassage && item.kind === 'choice' && item.passage && (
             <ScrollView style={styles.sidePassage} contentContainerStyle={[styles.sidePassageContent, { paddingTop: Math.max(28, insets.top + 16) }]}>
@@ -223,8 +232,15 @@ export default function ExamSessionScreen({ examId }: ExamSessionScreenProps) {
           <ScrollView
             key={item.id}
             style={styles.content}
-            contentContainerStyle={[styles.contentInner, isTablet && { paddingTop: Math.max(24, insets.top + 12) }]}
+            contentContainerStyle={[
+                styles.contentInner,
+                isTablet && { paddingTop: Math.max(24, insets.top + 12) },
+                // Klavye ve kaldırılan alt çubuk içeriğin altını kapatır; en alta kadar kaydırılabilsin
+                keyboardInset > 0 && { paddingBottom: 28 + footerLift },
+              ]}
             keyboardShouldPersistTaps="handled"
+            // Android odaklanan metin alanını kendiliğinden kaydırmasın; sayfa olduğu yerde kalır, öğrenci kendisi kaydırır
+            scrollsChildToFocus={false}
           >
             <View style={styles.column}>
               {showPaneTabs && (
@@ -281,7 +297,9 @@ export default function ExamSessionScreen({ examId }: ExamSessionScreenProps) {
           </ScrollView>
         </View>
 
-        <View style={[styles.footer, { paddingBottom: Math.max(12, insets.bottom) }]}>
+        {/* Alt çubuğun boyu sabit kalır (boyu değişse ScrollView da değişir ve sayfa kayar). Klavye açıkken alttaki sistem
+            boşluğu klavyenin altına girecek kadar kaldırılır; buton klavyenin 12px üstünde durur. */}
+        <View style={[styles.footer, { paddingBottom: footerPadding, transform: [{ translateY: -footerLift }] }]}>
           <Text style={styles.hint}>{hint}</Text>
           <Button
             label={nextLabel}
@@ -293,11 +311,11 @@ export default function ExamSessionScreen({ examId }: ExamSessionScreenProps) {
             style={styles.nextButton}
           />
         </View>
-      </KeyboardAvoidingView>
+      </View>
 
       <Watermark text={watermarkText} />
       {dialog && <Dialog {...dialog} />}
-      <Toast message={toast.message} bottom={Math.max(96, insets.bottom + 84)} padX={padX} />
+      <Toast message={toast.message} bottom={bottom(12) + 84} padX={padX} />
     </View>
   );
 }

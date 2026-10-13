@@ -1,8 +1,9 @@
 import { StyleSheet, Text, View } from 'react-native';
 import { theme } from '../theme';
 import Button from './Button';
+import Kicker from './Kicker';
 
-const { colors, fonts, typography } = theme;
+const { colors, fonts } = theme;
 
 export interface DialogConfig {
   kicker: string;
@@ -23,7 +24,7 @@ export default function Dialog({ kicker, title, body, tone = 'default', primaryL
   return (
     <View style={styles.backdrop} accessibilityViewIsModal>
       <View style={[styles.dialog, { borderTopColor: tone === 'warn' ? colors.warn : colors.text }]}>
-        <Text style={typography.kickerAccent}>{kicker}</Text>
+        <Kicker accent>{kicker}</Kicker>
         <Text style={styles.title} accessibilityRole="header">{title}</Text>
         <Text style={styles.body}>{body}</Text>
         <View style={styles.actions}>

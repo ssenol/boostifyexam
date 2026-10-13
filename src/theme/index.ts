@@ -61,14 +61,13 @@ export const space = {
   8: 32,
 } as const;
 
-// Prototipte sık tekrarlanan metin stilleri
+// Prototipte sık tekrarlanan metin stilleri. kicker stilleri büyük harfe çevirmez: <Kicker> kullanın (bkz. Kicker.tsx)
 export const typography = {
   // Küçük, büyük harfli üst başlık ("TIME LEFT", "CLOSES")
   kicker: {
     fontFamily: fonts.regular,
     fontSize: 11,
     letterSpacing: 1.1,
-    textTransform: 'uppercase',
     color: colors.neutral700,
   },
   // Vurgulu üst başlık ("PROGRESS TEST · 3 OF 4")
@@ -76,7 +75,6 @@ export const typography = {
     fontFamily: fonts.semiBold,
     fontSize: 11,
     letterSpacing: 1.1,
-    textTransform: 'uppercase',
     color: colors.accent700,
   },
   body: {
@@ -102,8 +100,8 @@ export const theme = {
     // Telefon / tablet yatay iç boşluk (prototipte padX)
     padX: 20,
     padXTablet: 40,
-    // Android tablette alttaki sistem dock'u için ek boşluk
-    androidTabletDockOffset: 16,
+    // Android tablette alttaki sistem çubuğu için ek boşluk (Galaxy Tab A9+'ta butonlar çubuğa çok yakın duruyordu)
+    androidTabletDockOffset: 14,
   },
 } as const;
 

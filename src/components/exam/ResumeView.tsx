@@ -1,8 +1,10 @@
 import { StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import useBottomSpacing from '../../hooks/useBottomSpacing';
 import { theme } from '../../theme';
 import Button from '../Button';
 import Tag from '../Tag';
+import Kicker from '../Kicker';
 
 const { colors, fonts, typography } = theme;
 
@@ -18,10 +20,11 @@ interface ResumeViewProps {
 // Duraklatılmış oturum ("Pause and leave" sonrası geri gelince)
 export default function ResumeView({ answeredCount, timeText, onContinue, onLeave, busy, isTablet }: ResumeViewProps) {
   const insets = useSafeAreaInsets();
+  const bottom = useBottomSpacing();
   const padX = isTablet ? theme.layout.padXTablet : theme.layout.padX;
 
   return (
-    <View style={[styles.root, { paddingHorizontal: padX, paddingTop: insets.top, paddingBottom: Math.max(16, insets.bottom) }]}>
+    <View style={[styles.root, { paddingHorizontal: padX, paddingTop: insets.top, paddingBottom: bottom(16) }]}>
       <View style={styles.inner}>
         <View style={styles.head}>
           <Tag label="Paused" />
@@ -30,12 +33,12 @@ export default function ResumeView({ answeredCount, timeText, onContinue, onLeav
         </View>
         <View style={styles.stats}>
           <View style={styles.stat}>
-            <Text style={typography.kicker}>Answered</Text>
+            <Kicker>Answered</Kicker>
             <Text style={styles.statValue}>{answeredCount}</Text>
             <Text style={styles.statUnit}>questions</Text>
           </View>
           <View style={[styles.stat, styles.statDivided]}>
-            <Text style={typography.kicker}>Time left</Text>
+            <Kicker>Time left</Kicker>
             <Text style={styles.statValue}>{timeText}</Text>
             <Text style={styles.statUnit}>minutes</Text>
           </View>
