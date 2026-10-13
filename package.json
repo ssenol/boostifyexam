@@ -5,7 +5,8 @@
   "scripts": {
     "start": "expo start",
     "android": "expo run:android",
-    "ios": "expo run:ios --device \"iPhone 16\"",
+    "ios": "expo run:ios --device 00008140-000D54510C41801C",
+    "ios:ipad": "expo run:ios --device 00008122-000428AC2EBB801C",
     "lint": "expo lint",
     "typecheck": "tsc --noEmit"
   },

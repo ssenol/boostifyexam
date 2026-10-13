@@ -19,7 +19,8 @@ Expo mobil uygulamasıdır. İngilizce, CEFR ölçeğinde, adaptif sınavlar. S�
 
 ```bash
 npm start                              # Expo dev server (dev client gerekli, Expo Go DESTEKLENMİYOR)
-npm run ios                            # iOS'ta çalıştır (iPhone 16 fiziksel cihaz)
+npm run ios                            # iOS: "Selçuk iPhone" (iPhone 16, UDID ile)
+npm run ios:ipad                       # iOS: "Selçuk iPad Air" (UDID ile)
 npm run android
 npm run typecheck                      # tsc --noEmit
 npm run lint                           # expo lint
@@ -28,6 +29,10 @@ npx expo prebuild --clean              # Native projeleri (ios/android) yeniden 
 
 **Node sürümü:** Node 22 gerekli (sürüm `n` ile değiştiriliyor). Node 16 ile Expo CLI `Blob is not defined` hatası verir;
 böyle bir hata görülürse önce `node -v` kontrol edin.
+
+**Cihaz hedefleme:** `ios` script'leri cihazı UDID ile seçer. Adla (`--device "iPhone 16"`) seçmek, runtime'ı olmayan
+aynı adlı bir simülatöre denk gelip `Unable to boot device because we cannot determine the runtime bundle` hatası
+veriyordu. Cihaz listesi: `xcrun devicectl list devices`.
 
 Proje Dropbox'ta: `node_modules` ve prebuild sonrası `ios`/`android` için `xattr -w com.dropbox.ignored 1 <klasör>`
 uygulanmalı. Xcode 27 / Device Hub notları için Speak'in `CLAUDE.md`'sine bakın.
@@ -83,6 +88,11 @@ yöne döner (Speak ile aynı). Prototipte telefon `padX` 20, tablet 40.
 
 Kişisel cihazda uygulama kilitlenemez; "Secure mode" = caydırma + tespit + sunucuya olay kaydı.
 **İstemciye güvenme:** süre, dinleme hakkı ve deneme sayısı sunucuda tutulur. Ayrıntılar ve plan için nota bakın.
+
+## Git
+
+- Commit'i kullanıcı istediğinde Claude atar; mesaj Türkçe, tek satır özet. **Co-Authored-By veya Claude'a dair
+  ifade eklenmez**, commit kullanıcının git kimliğiyle atılır. Push yapılmaz.
 
 ## Kod Kuralları
 
