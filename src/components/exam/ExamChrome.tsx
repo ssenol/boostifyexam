@@ -14,6 +14,10 @@ const { colors, fonts } = theme;
 // Son 5 dakikada süre turuncuya döner
 export const LOW_TIME_SECONDS = 5 * 60;
 
+// Tablette (iPad, Android tablet) üst kenar boşluğuna eklenen pay: Pause butonu durum çubuğuna yapışmasın.
+// Sağdaki içerik de aynı payla aşağı iner, hizalı kalır.
+export const TABLET_TOP_EXTRA = 20;
+
 export interface ExamChromeProps {
   examTitle: string;
   skill: string;
@@ -108,7 +112,7 @@ export function ExamSidePanel(props: ExamChromeProps) {
   const conn = CONNECTION[props.saveState];
 
   return (
-    <View style={[sideStyles.panel, { paddingTop: Math.max(20, insets.top), paddingBottom: bottom(20) }]}>
+    <View style={[sideStyles.panel, { paddingTop: Math.max(20, insets.top) + TABLET_TOP_EXTRA, paddingBottom: bottom(20) }]}>
       <View style={sideStyles.topRow}>
         <Button label="Pause" variant="secondary" size="compact" leading={<CloseIcon size={18} />} onPress={props.onPause} />
         <View style={sideStyles.secure}>

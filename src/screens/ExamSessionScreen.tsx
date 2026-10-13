@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Button from '../components/Button';
 import Dialog, { DialogConfig } from '../components/Dialog';
 import ChoiceQuestion from '../components/exam/ChoiceQuestion';
-import { ExamChromeProps, ExamSidePanel, ExamTopBar, LOW_TIME_SECONDS } from '../components/exam/ExamChrome';
+import { ExamChromeProps, ExamSidePanel, ExamTopBar, LOW_TIME_SECONDS, TABLET_TOP_EXTRA } from '../components/exam/ExamChrome';
 import ListeningPlayer from '../components/exam/ListeningPlayer';
 import ReadingPassage from '../components/exam/ReadingPassage';
 import ResumeView from '../components/exam/ResumeView';
@@ -49,8 +49,9 @@ export default function ExamSessionScreen({ examId }: ExamSessionScreenProps) {
 
   const user = useAppSelector(selectCurrentUser);
   const insets = useSafeAreaInsets();
-  const { isTablet } = useResponsive();
-  const styles = useMemo(() => createStyles(isTablet), [isTablet]);
+  const { isTablet, width, height } = useResponsive();
+  const isPortrait = height > width;
+  const styles = useMemo(() => createStyles(isTablet, isPortrait), [isTablet, isPortrait]);
   const padX = isTablet ? theme.layout.padXTablet : theme.layout.padX;
   const toast = useToast();
   const bottom = useBottomSpacing();
@@ -204,8 +205,10 @@ export default function ExamSessionScreen({ examId }: ExamSessionScreenProps) {
   };
 
   const reading = item.kind === 'choice' && !!item.passage;
-  const showSidePassage = reading && isTablet;
-  const showPaneTabs = reading && !isTablet;
+  // Okuma metni yalnızca yatay tablette soruyla yan yana durur. Dikey tablette yan panelle birlikte üç dar sütun oluyordu;
+  // orada da telefondaki gibi Text / Question sekmeleri kullanılır.
+  const showSidePassage = reading && isTablet && !isPortrait;
+  const showPaneTabs = reading && !showSidePassage;
   const showInlinePassage = showPaneTabs && pane === 'text';
 
   const hint = hintFor(item, { selectedKey, words, recordState: recorder.state });
@@ -224,7 +227,7 @@ export default function ExamSessionScreen({ examId }: ExamSessionScreenProps) {
       <View ref={keyboardRef} onLayout={onKeyboardAreaLayout} style={styles.main}>
         <View style={styles.body}>
           {showSidePassage && item.kind === 'choice' && item.passage && (
-            <ScrollView style={styles.sidePassage} contentContainerStyle={[styles.sidePassageContent, { paddingTop: Math.max(28, insets.top + 16) }]}>
+            <ScrollView style={styles.sidePassage} contentContainerStyle={[styles.sidePassageContent, { paddingTop: Math.max(28, insets.top + 16) + TABLET_TOP_EXTRA }]}>
               <ReadingPassage passage={item.passage} showKicker />
             </ScrollView>
           )}
@@ -234,7 +237,7 @@ export default function ExamSessionScreen({ examId }: ExamSessionScreenProps) {
             style={styles.content}
             contentContainerStyle={[
                 styles.contentInner,
-                isTablet && { paddingTop: Math.max(24, insets.top + 12) },
+                isTablet && { paddingTop: Math.max(24, insets.top + 12) + TABLET_TOP_EXTRA },
                 // Klavye ve kaldırılan alt çubuk içeriğin altını kapatır; en alta kadar kaydırılabilsin
                 keyboardInset > 0 && { paddingBottom: 28 + footerLift },
               ]}
@@ -408,7 +411,7 @@ function buildDialog(ctx: DialogContext): DialogConfig | null {
   }
 }
 
-const createStyles = (isTablet: boolean) => {
+const createStyles = (isTablet: boolean, isPortrait: boolean) => {
   const padX = isTablet ? theme.layout.padXTablet : theme.layout.padX;
   return StyleSheet.create({
     root: {
@@ -474,7 +477,8 @@ const createStyles = (isTablet: boolean) => {
       lineHeight: 18,
       color: colors.neutral700,
     },
-    nextButton: isTablet ? { width: 320 } : {},
+    // Dikey tablette yan panel yer kapladığı için buton daralır; ipucu metni sığsın
+    nextButton: isTablet ? { width: isPortrait ? 240 : 320 } : {},
   });
 };
 
