@@ -51,7 +51,12 @@ app/
 │   └── login.tsx        # Giriş yapılmışsa "/"'a Redirect
 └── (main)/
     ├── _layout.tsx      # Auth koruması: giriş yoksa "/login"'e Redirect. Tab bar YOK, Stack.
-    └── index.tsx        # Assignments
+    ├── index.tsx        # Assignments (Open / Completed)
+    ├── exam/[id]/
+    │   ├── index.tsx    # Intro: kurallar + cihaz kontrolü
+    │   ├── session.tsx  # Sınav (gestureEnabled: false). Intro'dan replace ile açılır
+    │   └── result.tsx   # Sonuç. Session'dan replace ile açılır
+    └── report/[id].tsx  # Rapor (?from=assign|result)
 ```
 
 `app/**` dosyaları ince sarmalayıcıdır; ekranın kendisi `src/screens/*.tsx`'te. Yeni ekran: önce `src/screens/`,
@@ -66,6 +71,15 @@ sonra `app/` altında route dosyası. `@/*` path alias'ı kök dizini gösterir.
 Çıkış her zaman `src/utils/logoutHelper.ts` → `performLogout` üzerinden yapılır. Kullanıcıya ait yeni cache'ler de
 orada temizlenmeli.
 
+### Sınav akışı
+
+- **Sahte sunucu:** API henüz yok. `src/services/exam.ts` → `src/mocks/examServer.ts`. Ekranlar sadece servisi çağırır; API gelince yalnızca servis değişir. Tipler `src/types/exam.ts`.
+- **Sunucu otoritesi:** Süre, soru sırası, dinleme hakkı ve olaylar sunucuda. İstemci kalan süreyi sadece gösterim için sayar. Sözleşme: `.claude/notes/sinav-akisi-ve-api-sozlesmesi.md`.
+- **`useExamSession`:** Sunucunun son görüntüsünü (snapshot) tutar. İstekleri sırayla gönderir, kalan süreyi sayar, bağlantı durumunu (`saveState`) tutar.
+- **`useExamGuard`:** Ayrılma (AppState, Android blur), ekran bölme ve Android geri tuşu tespiti. Ayrılınca pause + olay kaydı; dönünce güvenlik uyarısı.
+- **Ekran bileşenleri:** `ExamSessionScreen` + `src/components/exam/*`. Telefonda `ExamTopBar`, tablette 300px `ExamSidePanel`. Okuma metni tablette yan panelde, telefonda Text/Question sekmeleriyle. Diğer parçalar: overlay'ler (`Dialog`), `Watermark`, `ResumeView`.
+- **Simüle edilenler:** Ses çalma, kayıt, cihaz kontrolü, ekran görüntüsü engeli ve görseller henüz simüle; native paket gerekiyor (bkz. not).
+
 ### API katmanı
 
 `src/config/api.ts`: tek axios instance + `API_ENDPOINTS`. Access token 24 saatten eskiyse istekten önce yenilenir.
@@ -75,8 +89,13 @@ orada temizlenmeli.
 ### Tema
 
 `src/theme/index.ts`: prototipin token'ları (`colors`, `fonts`, `space`, `layout`). Dark mode yok. Köşe yarıçapı
-tasarımda bilerek 0. Font: Archivo 400/600/800 (`fonts.regular/semiBold/extraBold`). Ortak bileşenler: `Button`
-(primary/secondary), `TextField`, `BrandMark`.
+tasarımda bilerek 0. Font: Archivo 400/600/800 (`fonts.regular/semiBold/extraBold`). Tekrarlanan metin stilleri `typography`
+(`kicker`, `kickerAccent`, `body`, `muted`). Ortak bileşenler (`src/components/`):
+- `Button`: `primary` / `secondary` / `ghost` varyantları; `large` / `medium` / `compact` boyutları; `trailing` true ise ok ikonu.
+- `Tag`, `ScreenHeader`, `Dialog`, `Toast` + `useToast`, `StateView` (yükleniyor / hata), `ImagePlaceholder`.
+- `icons.tsx`: prototipteki Lucide path'leri.
+
+Veri yükleme: `useAsyncData(load)`; `load` `useCallback` ile verilmeli.
 
 ### Responsive
 
@@ -102,5 +121,8 @@ Kişisel cihazda uygulama kilitlenemez; "Secure mode" = caydırma + tespit + sun
 
 ## Notlar
 
+- [.claude/notes/sinav-akisi-ve-api-sozlesmesi.md](.claude/notes/sinav-akisi-ve-api-sozlesmesi.md): ekran akışı,
+  sunucudan beklenen davranış ve önerilen endpoint'ler, istemcideki secure mode önlemleri, simüle edilenler,
+  prototipten bilinçli farklar, açık ürün soruları.
 - [.claude/notes/mimari-ve-guvenlik-karari.md](.claude/notes/mimari-ve-guvenlik-karari.md): RN/Expo kararı, kişisel
   cihaz varsayımı, istemci/sunucu güvenlik önlemleri planı, prototip ekran listesi, açık konular (SSO, görseller, endpoint'ler).

@@ -27,6 +27,10 @@ export const colors = {
 
   // CEFR merdiveninde vurgulanan seviye
   success: '#7cc242',
+  // Bağlantı durumu noktası ("Connected · every answer saved instantly")
+  online: '#2f9e5b',
+  // Dialog arka planı: neutral900 %55
+  backdrop: 'rgba(45, 43, 43, 0.55)',
 
   neutral100: '#f8f4f4',
   neutral200: '#eae7e7',
@@ -57,10 +61,43 @@ export const space = {
   8: 32,
 } as const;
 
+// Prototipte sık tekrarlanan metin stilleri
+export const typography = {
+  // Küçük, büyük harfli üst başlık ("TIME LEFT", "CLOSES")
+  kicker: {
+    fontFamily: fonts.regular,
+    fontSize: 11,
+    letterSpacing: 1.1,
+    textTransform: 'uppercase',
+    color: colors.neutral700,
+  },
+  // Vurgulu üst başlık ("PROGRESS TEST · 3 OF 4")
+  kickerAccent: {
+    fontFamily: fonts.semiBold,
+    fontSize: 11,
+    letterSpacing: 1.1,
+    textTransform: 'uppercase',
+    color: colors.accent700,
+  },
+  body: {
+    fontFamily: fonts.regular,
+    fontSize: 16,
+    lineHeight: 24,
+    color: colors.text,
+  },
+  muted: {
+    fontFamily: fonts.regular,
+    fontSize: 13,
+    lineHeight: 18,
+    color: colors.neutral700,
+  },
+} as const;
+
 export const theme = {
   colors,
   fonts,
   space,
+  typography,
   layout: {
     // Telefon / tablet yatay iç boşluk (prototipte padX)
     padX: 20,

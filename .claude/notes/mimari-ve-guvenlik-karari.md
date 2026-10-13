@@ -63,7 +63,7 @@ Bunlar backend (quizmaker-api) ekibiyle konuşulacak.
   `src/hooks/useResponsive.ts`, `app/_layout.tsx`.
 - Tema token'ları `src/theme/index.ts`.
 - Login ekranı prototipe göre (telefon: dikey; tablet: yarı mavi panel + CEFR merdiveni).
-- Assignments ekranı şimdilik yer tutucu (sadece çıkış butonu).
+- Sınav ekranları sahte veriyle kuruldu: bkz. [sinav-akisi-ve-api-sozlesmesi.md](sinav-akisi-ve-api-sozlesmesi.md).
 - Biyometrik giriş Speak'ten **alınmadı**; istenirse sonra eklenir.
 
 ## Kesinleşenler
@@ -76,4 +76,4 @@ Bunlar backend (quizmaker-api) ekibiyle konuşulacak.
 
 - Icon, splash ve adaptive icon görselleri.
 - SSO akışı (login'deki "School account (SSO)" butonu şimdilik bilgi mesajı gösteriyor).
-- Sınav endpoint'leri.
+- Sınav endpoint'leri (önerilen liste: sinav-akisi-ve-api-sozlesmesi.md).

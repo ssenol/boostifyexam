@@ -1,79 +1,115 @@
 import { ReactNode } from 'react';
 import { ActivityIndicator, Pressable, StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
 import { theme } from '../theme';
+import { ArrowRightIcon } from './icons';
 
 const { colors, fonts } = theme;
 
-type Variant = 'primary' | 'secondary';
+type Variant = 'primary' | 'secondary' | 'ghost';
+type Size = 'large' | 'medium' | 'compact';
 
 interface ButtonProps {
   label: string;
   onPress: () => void;
   variant?: Variant;
-  // Etiketin sağında gösterilir; varsa etiket sola, ikon sağa yaslanır (prototipteki "Sign in →")
-  trailing?: ReactNode;
+  // large: 56px (sınav alt çubuğu), medium: 52px (varsayılan), compact: 44px, içeriğe göre genişlik
+  size?: Size;
+  // Etiketin solunda (ör. "Pause" X ikonu)
+  leading?: ReactNode;
+  // Etiketin sağında; true ise ok ikonu. Varsa etiket sola, ikon sağa yaslanır (prototipteki "Sign in →")
+  trailing?: ReactNode | true;
   loading?: boolean;
   disabled?: boolean;
+  accessibilityLabel?: string;
   style?: StyleProp<ViewStyle>;
 }
 
-// Prototipteki .btn-primary / .btn-secondary karşılığı (min 52px, köşesiz)
-export default function Button({ label, onPress, variant = 'primary', trailing, loading, disabled, style }: ButtonProps) {
-  const isPrimary = variant === 'primary';
-  const fg = isPrimary ? colors.bg : colors.text;
+const MIN_HEIGHT: Record<Size, number> = { large: 56, medium: 52, compact: 44 };
+const FONT_SIZE: Record<Size, number> = { large: 16, medium: 16, compact: 15 };
+
+// Prototipteki .btn-primary / .btn-secondary / .btn-ghost karşılığı (köşesiz)
+export default function Button({
+  label,
+  onPress,
+  variant = 'primary',
+  size = 'medium',
+  leading,
+  trailing,
+  loading,
+  disabled,
+  accessibilityLabel,
+  style,
+}: ButtonProps) {
+  const fg = variant === 'primary' ? colors.bg : variant === 'ghost' ? colors.accent : colors.text;
+  const isCompact = size === 'compact';
+  const trailingNode = trailing === true ? <ArrowRightIcon color={fg} size={isCompact ? 18 : 20} /> : trailing;
 
   return (
     <Pressable
       accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
       accessibilityState={{ disabled: disabled || loading, busy: loading }}
       onPress={onPress}
       disabled={disabled || loading}
       style={({ pressed }) => [
         styles.base,
-        isPrimary ? styles.primary : styles.secondary,
-        pressed && (isPrimary ? styles.primaryPressed : styles.secondaryPressed),
+        { minHeight: MIN_HEIGHT[size] },
+        isCompact ? styles.compact : styles.full,
+        trailingNode || loading ? styles.spaceBetween : styles.start,
+        variantStyles[variant],
+        pressed && pressedStyles[variant],
         (disabled || loading) && styles.disabled,
         style,
       ]}
     >
-      <Text style={[styles.label, { color: fg }]}>{label}</Text>
-      {loading ? (
-        <ActivityIndicator color={fg} />
-      ) : (
-        trailing && <View>{trailing}</View>
-      )}
+      {leading}
+      <Text style={[styles.label, { color: fg, fontSize: FONT_SIZE[size] }]} numberOfLines={1}>
+        {label}
+      </Text>
+      {loading ? <ActivityIndicator color={fg} /> : trailingNode ? <View>{trailingNode}</View> : null}
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
   base: {
-    minHeight: 52,
-    width: '100%',
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    gap: 8,
     paddingHorizontal: 14,
     borderWidth: 1,
     borderColor: 'transparent',
   },
-  primary: {
-    backgroundColor: colors.accent,
+  full: {
+    width: '100%',
   },
-  primaryPressed: {
-    backgroundColor: colors.accent700,
+  compact: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 12,
   },
-  secondary: {
-    borderColor: colors.divider,
+  spaceBetween: {
+    justifyContent: 'space-between',
   },
-  secondaryPressed: {
-    backgroundColor: 'rgba(32, 30, 29, 0.14)',
+  start: {
+    justifyContent: 'flex-start',
   },
   disabled: {
     opacity: 0.45,
   },
   label: {
     fontFamily: fonts.extraBold,
-    fontSize: 16,
+    flexShrink: 1,
   },
+});
+
+const variantStyles = StyleSheet.create({
+  primary: { backgroundColor: colors.accent },
+  secondary: { borderColor: colors.divider },
+  ghost: { paddingHorizontal: 4 },
+});
+
+const pressedStyles = StyleSheet.create({
+  primary: { backgroundColor: colors.accent700 },
+  secondary: { backgroundColor: 'rgba(32, 30, 29, 0.14)' },
+  ghost: { backgroundColor: 'rgba(63, 81, 240, 0.18)' },
 });
