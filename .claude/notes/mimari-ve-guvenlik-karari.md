@@ -66,11 +66,14 @@ Bunlar backend (quizmaker-api) ekibiyle konuşulacak.
 - Assignments ekranı şimdilik yer tutucu (sadece çıkış butonu).
 - Biyometrik giriş Speak'ten **alınmadı**; istenirse sonra eklenir.
 
+## Kesinleşenler
+
+- Uygulama adı **BoostifyExam** (tekil; prototipteki "BoostifyExams" yazımı kullanılmaz).
+- Bundle ID: `com.uesturkey.boostifyexam` (dev: `.dev` ekli).
+- EAS projesi: @selcuksenol/boostifyexam (projectId `f1038a0c-ba86-488a-9d29-e1284ed38ebe`, app.config.js içinde).
+
 ## Açık konular
 
-- Bundle ID: `app.config.js`'te geçici olarak `com.uesturkey.boostifyexam`. Speak `com.ues.*`,
-  Write `com.uesturkey.*` kullanıyor. Mağazaya ilk yüklemeden önce kesinleşmeli.
-- `eas init` ile EAS projectId oluşturulacak.
 - Icon, splash ve adaptive icon görselleri.
 - SSO akışı (login'deki "School account (SSO)" butonu şimdilik bilgi mesajı gösteriyor).
 - Sınav endpoint'leri.

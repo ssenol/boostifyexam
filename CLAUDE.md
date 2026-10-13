@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Proje Özeti
 
-BoostifyExams, öğrencilerin seviye tespit (placement) ve ilerleme (progress) sınavlarına girdiği bir React Native +
+BoostifyExam, öğrencilerin seviye tespit (placement) ve ilerleme (progress) sınavlarına girdiği bir React Native +
 Expo mobil uygulamasıdır. İngilizce, CEFR ölçeğinde, adaptif sınavlar. Sınavlar **öğrencinin kendi cihazında** yapılır.
 
 - Kardeş uygulamalar: `../boostifyspeak` ve `../boostifywrite` (ikisi de canlıda). Aynı backend, aynı giriş/token mantığı.
@@ -12,7 +12,8 @@ Expo mobil uygulamasıdır. İngilizce, CEFR ölçeğinde, adaptif sınavlar. S�
 - **Expo SDK:** ~57 · **React Native:** 0.86.3 · **React:** 19.2.3
 - **Backend:** `https://quizmaker-api.onrender.com/api/v0.0.1`
 - **Tasarım:** `BoostifyExams Sinav Arayuzu 1.html` (çalışan prototip). Çözülmüş hali `_calismalar/prototip/`.
-  Arayüz dili İngilizce.
+  Arayüz dili İngilizce. Uygulama adı **BoostifyExam** (tekil); prototipteki "Exams" yazımı kullanılmaz.
+- **Bundle ID:** `com.uesturkey.boostifyexam` (dev: `.dev` ekli)
 
 ## Komutlar
 
@@ -25,8 +26,8 @@ npm run lint                           # expo lint
 npx expo prebuild --clean              # Native projeleri (ios/android) yeniden üret
 ```
 
-**Node sürümü:** Shell'deki varsayılan `node` (n ile kurulu v16) Expo SDK 57 için çok eski (`Blob is not defined`
-hatası). Komutları `/usr/local/bin/node` (v22) ile çalıştırın: `export PATH=/usr/local/bin:$PATH`.
+**Node sürümü:** Node 22 gerekli (sürüm `n` ile değiştiriliyor). Node 16 ile Expo CLI `Blob is not defined` hatası verir;
+böyle bir hata görülürse önce `node -v` kontrol edin.
 
 Proje Dropbox'ta: `node_modules` ve prebuild sonrası `ios`/`android` için `xattr -w com.dropbox.ignored 1 <klasör>`
 uygulanmalı. Xcode 27 / Device Hub notları için Speak'in `CLAUDE.md`'sine bakın.
@@ -92,4 +93,4 @@ Kişisel cihazda uygulama kilitlenemez; "Secure mode" = caydırma + tespit + sun
 ## Notlar
 
 - [.claude/notes/mimari-ve-guvenlik-karari.md](.claude/notes/mimari-ve-guvenlik-karari.md): RN/Expo kararı, kişisel
-  cihaz varsayımı, istemci/sunucu güvenlik önlemleri planı, prototip ekran listesi, açık konular (bundle ID, EAS, SSO).
+  cihaz varsayımı, istemci/sunucu güvenlik önlemleri planı, prototip ekran listesi, açık konular (SSO, görseller, endpoint'ler).

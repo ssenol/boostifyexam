@@ -8,7 +8,7 @@ interface BrandMarkProps {
   color?: string;
 }
 
-// Dört renkli kare logo + "BoostifyExams" yazısı
+// Dört renkli kare logo + "BoostifyExam" yazısı
 export default function BrandMark({ color = colors.text }: BrandMarkProps) {
   return (
     <View style={styles.row}>
@@ -18,7 +18,7 @@ export default function BrandMark({ color = colors.text }: BrandMarkProps) {
         ))}
       </View>
       <Text style={[styles.title, { color }]}>
-        Boostify<Text style={styles.titleLight}>Exams</Text>
+        Boostify<Text style={styles.titleLight}>Exam</Text>
       </Text>
     </View>
   );

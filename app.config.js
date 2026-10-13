@@ -1,13 +1,11 @@
 const IS_DEV = process.env.APP_VARIANT === 'development';
 
-// TODO: Bundle ID kesinleşmedi. Speak `com.ues.*`, Write `com.uesturkey.*` kullanıyor; mağazaya ilk
-// yüklemeden sonra değiştirilemez.
 const BUNDLE_ID = 'com.uesturkey.boostifyexam';
 
 module.exports = {
   expo: {
     scheme: "boostifyexam",
-    name: IS_DEV ? "BoostifyExams DEV" : "BoostifyExams",
+    name: IS_DEV ? "BoostifyExam DEV" : "BoostifyExam",
     slug: "boostifyexam",
     version: "1.0.0",
     orientation: "portrait",
@@ -56,8 +54,10 @@ module.exports = {
       ]
     ],
     extra: {
-      router: {}
-      // TODO: `eas init` ile oluşan eas.projectId buraya eklenecek
+      router: {},
+      eas: {
+        projectId: "f1038a0c-ba86-488a-9d29-e1284ed38ebe"
+      }
     }
   }
 };
