@@ -1,11 +1,12 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { useFocusEffect } from 'expo-router';
-import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
 import Logo from '../components/Logo';
 import Button from '../components/Button';
 import Dialog from '../components/Dialog';
+import { useDialog } from '../components/DialogProvider';
 import { toUpperCaseEn } from '../components/Kicker';
 import TextField from '../components/TextField';
 import useBottomSpacing from '../hooks/useBottomSpacing';
@@ -46,6 +47,7 @@ export default function LoginScreen() {
   const [password, setPassword] = useState(DEV_PASSWORD);
   const [loading, setLoading] = useState(false);
   const passwordRef = useRef<TextInput>(null);
+  const dialog = useDialog();
 
   // Biyometrik giriş düğmesinin etiketi ("Face ID"); kapalıysa ya da bilgi yoksa null
   const [biometricLabel, setBiometricLabel] = useState<string | null>(null);
@@ -80,7 +82,7 @@ export default function LoginScreen() {
 
   const handleLogin = async () => {
     if (!username.trim() || !password) {
-      Alert.alert('Sign in failed', getErrorMessage(new ApiError('credentials_required', 400, '')));
+      dialog.alert({ kicker: 'Sign in', title: 'Sign in failed', body: getErrorMessage(new ApiError('credentials_required', 400, '')) });
       return;
     }
 
@@ -103,7 +105,7 @@ export default function LoginScreen() {
       }
       enterApp(session);
     } catch (e) {
-      Alert.alert('Sign in failed', getErrorMessage(e));
+      dialog.alert({ kicker: 'Sign in', title: 'Sign in failed', body: getErrorMessage(e) });
     } finally {
       setLoading(false);
     }
@@ -125,9 +127,13 @@ export default function LoginScreen() {
       if (isApiError(e, 'invalid_credentials')) {
         await biometricAuth.disable().catch(() => {});
         setBiometricLabel(null);
-        Alert.alert('Sign in with your password', `Your password has changed. Sign in with your password to use ${biometricLabel} again.`);
+        dialog.alert({
+          kicker: biometricLabel,
+          title: 'Sign in with your password',
+          body: `Your password has changed. Sign in with your password to use ${biometricLabel} again.`,
+        });
       } else {
-        Alert.alert('Sign in failed', getErrorMessage(e));
+        dialog.alert({ kicker: 'Sign in', title: 'Sign in failed', body: getErrorMessage(e) });
       }
     } finally {
       setBiometricLoading(false);

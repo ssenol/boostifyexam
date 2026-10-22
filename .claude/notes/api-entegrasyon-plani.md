@@ -290,8 +290,14 @@ etiketi "Placement" / "Progress".
 
 | ✓ | Durum | Beklenen | Nasıl oluşur |
 |---|---|---|---|
-| ☐ | Web'de gerçekten çözülmüş bir sınavın raporu web'le aynı | Seviye, beceriler, writing / speaking ayrıntıları, kriter adları, geri bildirim | Ekipten birinin hesabı |
+| ✓ | Web'de gerçekten çözülmüş bir sınavın raporu web'le aynı | Seviye, beceriler, writing / speaking ayrıntıları, kriter adları, geri bildirim | Ekipten birinin hesabı |
 | ☐ | Güven notunun `high` / `low` karşılığı | Webdeki ifade | Farklı kesinlikte sonuç |
+
+Rapor sekmelere bölündü (2026-10-22): Overview (özet kartı, beceri kartları simgeli, Worth working on, sertifika) ·
+Writing · Speaking (önce yeşil Strengths / mavi Next steps kutuları, puan kartı Content / Voice, açılır "Your
+answer" / "The task" / "Why this score"; resim küçük önizleme). Seviye renkleri webdeki palet (`theme/levels.ts`,
+`LevelBadge`). Uygulama genelinde `useDialog()` (Alert.alert kaldırıldı). Boş liste kartı simgeli, "View results".
+Doğrulananlar: placementstu18 (Ahmet, B1+, writing skipped, speaking web kaydı), Gürkan (B1, B2+ rengi).
 
 ### Tablet görünümü
 

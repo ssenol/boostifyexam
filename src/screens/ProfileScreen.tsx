@@ -1,8 +1,9 @@
 import { router, useFocusEffect } from 'expo-router';
 import { ReactNode, useCallback, useMemo, useState } from 'react';
-import { Alert, RefreshControl, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { RefreshControl, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import Button from '../components/Button';
 import Dialog from '../components/Dialog';
+import { useDialog } from '../components/DialogProvider';
 import Kicker from '../components/Kicker';
 import ScreenHeader from '../components/ScreenHeader';
 import TextField from '../components/TextField';
@@ -30,8 +31,8 @@ export default function ProfileScreen() {
   const { isTablet } = useResponsive();
   const styles = useMemo(() => createStyles(isTablet), [isTablet]);
   const [refreshing, setRefreshing] = useState(false);
-  const [confirmingLogout, setConfirmingLogout] = useState(false);
   const mic = useMicPermission();
+  const dialog = useDialog();
   const [biometric, setBiometric] = useState<{ availability: BiometricAvailability; enabled: boolean } | null>(null);
   const [biometricBusy, setBiometricBusy] = useState(false);
   // Biyometrik açılırken telefonda şifre yoksa (ör. özellikten önce açılmış oturum) şifre bir kez sorulur
@@ -48,6 +49,20 @@ export default function ProfileScreen() {
       loadBiometric().catch(() => {});
     }, [loadBiometric]),
   );
+
+  const signOut = async () => {
+    const ok = await dialog.confirm({
+      kicker: 'Sign out',
+      title: 'Sign out of BoostifyExam?',
+      body: biometric?.enabled
+        ? `You can sign in again with ${biometric.availability.label}.`
+        : 'You will need your username and password to sign in again.',
+      primaryLabel: 'Sign out',
+      primaryVariant: 'dark',
+      secondaryLabel: 'Cancel',
+    });
+    if (ok) performLogout({ dispatch });
+  };
 
   // Face ID ile doğrulatıp açar
   const enableBiometric = async (label: string) => {
@@ -71,7 +86,7 @@ export default function ProfileScreen() {
       }
       await loadBiometric();
     } catch {
-      Alert.alert(label, 'This setting could not be changed. Try again.');
+      dialog.alert({ kicker: 'Security', title: label, body: 'This setting could not be changed. Try again.' });
     } finally {
       setBiometricBusy(false);
     }
@@ -201,7 +216,7 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        <Button label="Sign out" variant="dark" onPress={() => setConfirmingLogout(true)} />
+        <Button label="Sign out" variant="dark" onPress={signOut} />
       </ScrollView>
 
       {passwordPrompt && biometric && (
@@ -230,21 +245,6 @@ export default function ProfileScreen() {
         </Dialog>
       )}
 
-      {confirmingLogout && (
-        <Dialog
-          kicker="Sign out"
-          title="Sign out of BoostifyExam?"
-          body={
-            biometric?.enabled
-              ? `You can sign in again with ${biometric.availability.label}.`
-              : 'You will need your username and password to sign in again.'
-          }
-          primaryLabel="Sign out"
-          onPrimary={() => performLogout({ dispatch })}
-          secondaryLabel="Cancel"
-          onSecondary={() => setConfirmingLogout(false)}
-        />
-      )}
     </View>
   );
 }

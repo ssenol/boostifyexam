@@ -76,3 +76,62 @@ export function StopIcon({ size = 26, color = theme.colors.bg }: IconProps) {
     </Svg>
   );
 }
+
+// Writing (lucide pen-line)
+export function PenIcon({ size = 20, color = theme.colors.accent }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" {...stroke(color)}>
+      <Path d="M12 20h9" />
+      <Path d="M16.376 3.622a1 1 0 0 1 3.002 3.002L7.368 18.635a2 2 0 0 1-.855.506l-2.872.838a.5.5 0 0 1-.62-.62l.838-2.872a2 2 0 0 1 .506-.854z" />
+    </Svg>
+  );
+}
+
+// Reading (lucide book-open)
+export function BookIcon({ size = 20, color = theme.colors.accent }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" {...stroke(color)}>
+      <Path d="M12 7v14" />
+      <Path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z" />
+    </Svg>
+  );
+}
+
+// Language use (lucide spell-check)
+export function SpellCheckIcon({ size = 20, color = theme.colors.accent }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" {...stroke(color)}>
+      <Path d="m6 16 6-12 6 12" />
+      <Path d="M8 12h8" />
+      <Path d="m16 20 2 2 4-4" />
+    </Svg>
+  );
+}
+
+// Strengths (lucide check)
+export function CheckIcon({ size = 18, color = theme.colors.text }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" {...stroke(color)}>
+      <Path d="M20 6 9 17l-5-5" />
+    </Svg>
+  );
+}
+
+// Açılır başlık (lucide chevron-down); kapalıyken döndürülür
+export function ChevronDownIcon({ size = 20, color = theme.colors.text }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" {...stroke(color)}>
+      <Path d="m6 9 6 6 6-6" />
+    </Svg>
+  );
+}
+
+// Boş liste (lucide inbox)
+export function InboxIcon({ size = 24, color = theme.colors.accent }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" {...stroke(color)}>
+      <Path d="M22 12h-6l-2 3h-4l-2-3H2" />
+      <Path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z" />
+    </Svg>
+  );
+}

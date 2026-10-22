@@ -129,6 +129,10 @@ mavi `accent` #303FE0, turuncu `primary` / `warn` #F05A25 (logo ve splash ile ay
 tasarımda bilerek 0. Font: Archivo 400/600/800 (`fonts.regular/semiBold/extraBold`). Tekrarlanan metin stilleri `typography`
 (`kicker`, `kickerAccent`, `body`, `muted`). Ortak bileşenler (`src/components/`):
 - `Button`: `primary` (turuncu ana eylem) / `dark` (siyah, belirgin ama ana eylem değil: Sign out) / `secondary` / `ghost` varyantları; `large` / `medium` / `compact` boyutları; `trailing` true ise ok ikonu.
+- **Pencereler:** `Alert.alert` kullanılmaz. Uygulama genelinde `useDialog()` (`src/components/DialogProvider.tsx`,
+  kökte): `alert({ title, body })` tek düğmeli, `confirm({...})` onay (birincil true). Sınav ekranının kendi pencereleri
+  (Pause, çıkış uyarıları, görev onayları) yerel `Dialog`. Ana düğme varsayılan turuncu; çıkış gibi eylemlerde
+  `primaryVariant: 'dark'`.
 - `Tag`, `ScreenHeader`, `Dialog` (ek içerik için `children`; klavye açılınca yukarı kayar), `Toast` + `useToast`,
   `StateView` (yükleniyor / hata), `ImagePlaceholder`, `CoverImage` (URL boşsa ya da yüklenemezse yer tutucu),
   `HtmlBlock` (sunucudan gelen HTML, WebView, içeriğe göre yükseklik, linkler tarayıcıda).

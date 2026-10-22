@@ -9,6 +9,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Provider } from 'react-redux';
 import { PersistGate } from 'redux-persist/integration/react';
+import DialogProvider from '@/src/components/DialogProvider';
 import { persistor, store } from '@/src/store';
 import { theme } from '@/src/theme';
 
@@ -51,10 +52,13 @@ export default function RootLayout() {
         <PersistGate loading={null} persistor={persistor}>
           <SafeAreaProvider>
             <StatusBar style="auto" />
-            <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: theme.colors.bg } }}>
-              <Stack.Screen name="(main)" />
-              <Stack.Screen name="(auth)" />
-            </Stack>
+            {/* Uygulama genelinde pencere (Alert.alert yerine); bütün ekranların üstünde */}
+            <DialogProvider>
+              <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: theme.colors.bg } }}>
+                <Stack.Screen name="(main)" />
+                <Stack.Screen name="(auth)" />
+              </Stack>
+            </DialogProvider>
           </SafeAreaProvider>
         </PersistGate>
       </Provider>

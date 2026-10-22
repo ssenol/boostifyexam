@@ -14,6 +14,8 @@ export interface DialogConfig {
   tone?: 'default' | 'warn';
   primaryLabel: string;
   onPrimary: () => void;
+  // Ana düğmenin görünümü; çıkış gibi geri dönüşü olan eylemlerde siyah (Sign out düğmesiyle aynı)
+  primaryVariant?: 'primary' | 'dark';
   secondaryLabel?: string;
   onSecondary?: () => void;
   busy?: boolean;
@@ -23,7 +25,7 @@ export interface DialogConfig {
 
 // Ekranın üstünde, kapatılamayan (arka plana dokununca kapanmayan) onay penceresi. Prototipteki .dialog.
 // RN Modal yerine absolute view: sınav ekranı tek parça kalır, AppState olayları Modal'la çakışmaz.
-export default function Dialog({ kicker, title, body, tone = 'default', primaryLabel, onPrimary, secondaryLabel, onSecondary, busy, children }: DialogConfig) {
+export default function Dialog({ kicker, title, body, tone = 'default', primaryLabel, onPrimary, primaryVariant = 'primary', secondaryLabel, onSecondary, busy, children }: DialogConfig) {
   return (
     // Ekranın kökünde (y = 0) durduğu için "padding" iki platformda da doğru: klavye açılınca pencere yukarı kayar
     <KeyboardAvoidingView style={styles.backdrop} behavior="padding" accessibilityViewIsModal>
@@ -33,7 +35,7 @@ export default function Dialog({ kicker, title, body, tone = 'default', primaryL
         <Text style={styles.body}>{body}</Text>
         {children}
         <View style={styles.actions}>
-          <Button label={primaryLabel} onPress={onPrimary} loading={busy} />
+          <Button label={primaryLabel} variant={primaryVariant} onPress={onPrimary} loading={busy} />
           {secondaryLabel && onSecondary && (
             <Button label={secondaryLabel} variant="secondary" onPress={onSecondary} disabled={busy} />
           )}

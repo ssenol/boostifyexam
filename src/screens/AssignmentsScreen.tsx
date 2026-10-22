@@ -1,5 +1,5 @@
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { ReactNode, useCallback, useMemo, useRef, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Button from '../components/Button';
 import CoverImage from '../components/CoverImage';
@@ -7,6 +7,7 @@ import Kicker from '../components/Kicker';
 import ScreenHeader from '../components/ScreenHeader';
 import StateView from '../components/StateView';
 import Tag from '../components/Tag';
+import { CheckIcon, InboxIcon } from '../components/icons';
 import useAsyncData from '../hooks/useAsyncData';
 import useBottomSpacing from '../hooks/useBottomSpacing';
 import useResponsive from '../hooks/useResponsive';
@@ -110,9 +111,14 @@ export default function AssignmentsScreen() {
             {exams.length === 0 ? (
               // Bitmiş sınavlar Results'ta; liste boşsa sebebi ona göre söylenir
               results.length > 0 ? (
-                <EmptyNote title="No new tests assigned" body="You’ve finished all your assigned tests. Your results are in the Results tab." />
+                <EmptyNote
+                  icon={<CheckIcon size={44} color={colors.accent} />}
+                  title="No new tests assigned"
+                  body="You’ve finished all your assigned tests. Your results are in the Results tab."
+                  action={{ label: 'View results', onPress: () => setTab('results') }}
+                />
               ) : (
-                <EmptyNote title="No tests assigned to you" body="New tests from your school appear here." />
+                <EmptyNote icon={<InboxIcon size={44} />} title="No tests assigned to you" body="New tests from your school appear here." />
               )
             ) : (
               <View style={styles.grid}>
@@ -127,7 +133,7 @@ export default function AssignmentsScreen() {
             )}
           </>
         ) : results.length === 0 ? (
-          <EmptyNote title="No completed tests yet" body="Finished tests and their reports appear here." />
+          <EmptyNote icon={<InboxIcon size={44} />} title="No completed tests yet" body="Finished tests and their reports appear here." />
         ) : (
           <View style={styles.grid}>
             {results.map((result) => (
@@ -270,11 +276,24 @@ function ResultCard({ result, isTablet }: { result: ResultSummary; isTablet: boo
   );
 }
 
-function EmptyNote({ title, body }: { title: string; body: string }) {
+// Boş liste kartı: simge, başlık, açıklama ve varsa bir eylem
+function EmptyNote({
+  icon,
+  title,
+  body,
+  action,
+}: {
+  icon: ReactNode;
+  title: string;
+  body: string;
+  action?: { label: string; onPress: () => void };
+}) {
   return (
     <View style={emptyStyles.wrap}>
+      <View style={emptyStyles.icon}>{icon}</View>
       <Text style={emptyStyles.title}>{title}</Text>
       <Text style={emptyStyles.body}>{body}</Text>
+      {action && <Button label={action.label} variant="secondary" size="compact" trailing onPress={action.onPress} style={emptyStyles.action} />}
     </View>
   );
 }
@@ -479,20 +498,34 @@ const cardStyles = StyleSheet.create({
   },
 });
 
-// Sekme çizgisinin hemen altında durduğu için kendi üst çizgisi yok
 const emptyStyles = StyleSheet.create({
   wrap: {
     maxWidth: 440,
-    gap: 4,
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 32,
+    paddingHorizontal: 24,
+    backgroundColor: colors.surface,
+  },
+  // Zeminsiz, büyük simge
+  icon: {
+    marginBottom: 4,
   },
   title: {
     fontFamily: fonts.extraBold,
     fontSize: 18,
+    lineHeight: 24,
     color: colors.text,
+    textAlign: 'center',
   },
   body: {
     fontFamily: fonts.regular,
-    fontSize: 14,
+    fontSize: 15,
+    lineHeight: 22,
     color: colors.neutral700,
+    textAlign: 'center',
+  },
+  action: {
+    marginTop: 8,
   },
 });

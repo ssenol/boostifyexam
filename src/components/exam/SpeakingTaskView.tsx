@@ -7,7 +7,7 @@ import {
   useAudioRecorderState,
 } from 'expo-audio';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, AppState, Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, AppState, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import type { MicPermission } from '../../hooks/useMicPermission';
 import type { Transcription } from '../../services/exam';
 import { theme } from '../../theme';
@@ -16,9 +16,9 @@ import { getErrorMessage } from '../../utils/errors';
 import { formatClock } from '../../utils/format';
 import Button from '../Button';
 import type { DialogConfig } from '../Dialog';
-import RemoteImage from '../RemoteImage';
 import Instructions from './Instructions';
 import { MicIcon, PlayIcon, StopIcon } from '../icons';
+import ZoomableImage from '../ZoomableImage';
 
 const { colors, fonts, typography } = theme;
 
@@ -93,7 +93,6 @@ export default function SpeakingTaskView({
   const [original, setOriginal] = useState('');
   const [transcribeFailed, setTranscribeFailed] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [imageOpen, setImageOpen] = useState(false);
   const finishing = useRef(false);
 
   useEffect(() => {
@@ -241,12 +240,7 @@ export default function SpeakingTaskView({
       {!!spec?.instructions && <Instructions title="In your answer" text={spec.instructions} />}
 
       {/* Resim görevin parçası: büyük, dokununca tam ekran */}
-      {!!item.imageUrl && (
-        <Pressable onPress={() => setImageOpen(true)} accessibilityRole="imagebutton" accessibilityLabel="Open the picture">
-          <RemoteImage uri={item.imageUrl} style={styles.image} />
-          <Text style={styles.imageHint}>Tap the picture to enlarge it</Text>
-        </Pressable>
-      )}
+      {!!item.imageUrl && <ZoomableImage uri={item.imageUrl} style={styles.image} hint="Tap the picture to enlarge it" />}
 
       {stage === 'idle' && (
         <View style={styles.recorder}>
@@ -347,14 +341,6 @@ export default function SpeakingTaskView({
 
       {!!error && <Text style={styles.error}>{error}</Text>}
 
-      {!!item.imageUrl && (
-        <Modal visible={imageOpen} animationType="fade" onRequestClose={() => setImageOpen(false)} supportedOrientations={['portrait', 'landscape']}>
-          <View style={styles.fullscreen}>
-            <RemoteImage uri={item.imageUrl} style={styles.fullscreenImage} />
-            <Button label="Close" variant="secondary" onPress={() => setImageOpen(false)} style={styles.fullscreenClose} />
-          </View>
-        </Modal>
-      )}
     </View>
   );
 }
@@ -409,12 +395,6 @@ const styles = StyleSheet.create({
   image: {
     maxWidth: 560,
     aspectRatio: 4 / 3,
-  },
-  imageHint: {
-    marginTop: 6,
-    fontFamily: fonts.regular,
-    fontSize: 12,
-    color: colors.neutral700,
   },
   recorder: {
     gap: 14,
@@ -524,19 +504,5 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
     color: colors.warn700,
-  },
-  fullscreen: {
-    flex: 1,
-    justifyContent: 'center',
-    padding: 16,
-    gap: 16,
-    backgroundColor: colors.bg,
-  },
-  fullscreenImage: {
-    flex: 1,
-  },
-  fullscreenClose: {
-    alignSelf: 'center',
-    minWidth: 200,
   },
 });
