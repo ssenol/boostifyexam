@@ -1,8 +1,9 @@
 import { router } from 'expo-router';
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Button from '../components/Button';
+import Kicker from '../components/Kicker';
 import StateView from '../components/StateView';
 import Tag from '../components/Tag';
 import useAsyncData from '../hooks/useAsyncData';
@@ -10,24 +11,39 @@ import useBottomSpacing from '../hooks/useBottomSpacing';
 import useResponsive from '../hooks/useResponsive';
 import examService from '../services/exam';
 import { theme } from '../theme';
-import Kicker from '../components/Kicker';
+import { EXAM_TYPE_LABEL } from '../types/exam';
 
 const { colors, fonts, typography } = theme;
 
+// Writing / speaking puanlanırken (yaklaşık 1 dk) bu aralıkla yeniden sorulur
+const EVALUATING_POLL_MS = 30_000;
+
 interface ExamResultScreenProps {
-  examId: string;
+  sessionId: string;
 }
 
-export default function ExamResultScreen({ examId }: ExamResultScreenProps) {
+// Bitiş ekranı ("Sınavın tamamlandı"): state.result'taki seviye. Ayrıntılar raporda.
+export default function ExamResultScreen({ sessionId }: ExamResultScreenProps) {
   const insets = useSafeAreaInsets();
   const bottom = useBottomSpacing();
   const { isTablet } = useResponsive();
   const styles = useMemo(() => createStyles(isTablet), [isTablet]);
 
-  const load = useCallback(() => examService.getResult(examId), [examId]);
-  const { data: result, loading, error, reload } = useAsyncData(load);
+  const load = useCallback(() => examService.getSession(sessionId), [sessionId]);
+  const { data: state, loading, error, reload, reloadQuietly } = useAsyncData(load);
 
-  if (!result) return <StateView loading={loading} error={error} onRetry={reload} />;
+  const evaluating = state?.status === 'awaiting_evaluation';
+  useEffect(() => {
+    if (!evaluating) return;
+    const timer = setInterval(reloadQuietly, EVALUATING_POLL_MS);
+    return () => clearInterval(timer);
+  }, [evaluating, reloadQuietly]);
+
+  if (!state) return <StateView loading={loading} error={error} onRetry={reload} />;
+
+  const result = state.result;
+  const noLevel = !result || result.noEvidence || result.insufficientEvidence || !result.cefrLevel;
+  const endedByRules = !!state.guard.endedBy;
 
   return (
     <ScrollView
@@ -36,14 +52,28 @@ export default function ExamResultScreen({ examId }: ExamResultScreenProps) {
     >
       <View style={styles.columns}>
         <View style={styles.column}>
-          <Kicker accent>{`${result.typeLabel} · Completed`}</Kicker>
+          <Kicker accent>{`${EXAM_TYPE_LABEL[state.examType]} · Completed`}</Kicker>
+          {endedByRules && (
+            <View style={styles.rules}>
+              <Text style={styles.rulesTitle}>Your test was ended because of the test rules.</Text>
+              <Text style={styles.note}>The answers you gave will be scored.</Text>
+            </View>
+          )}
           <Text style={styles.levelLabel}>Your level</Text>
-          <View style={styles.levelRow}>
-            <Text style={styles.level}>{result.level}</Text>
-            <Tag label={result.status} tone="neutral" style={styles.levelTag} />
-          </View>
-          <Text style={styles.summary}>{result.summary}</Text>
-          {!!result.note && <Text style={styles.note}>{result.note}</Text>}
+          {noLevel ? (
+            <>
+              <Text style={styles.noLevel}>Not determined</Text>
+              <Text style={styles.note}>There weren’t enough answers to set your level.</Text>
+            </>
+          ) : (
+            <View style={styles.levelRow}>
+              <Text style={styles.level}>{result.cefrLevel}</Text>
+              {evaluating && <Tag label="Evaluating" tone="neutral" style={styles.levelTag} />}
+            </View>
+          )}
+          {evaluating && !noLevel && (
+            <Text style={styles.note}>Your writing and speaking are being scored. Your level may change.</Text>
+          )}
         </View>
 
         <View style={styles.column}>
@@ -51,14 +81,14 @@ export default function ExamResultScreen({ examId }: ExamResultScreenProps) {
             <View style={styles.stat}>
               <Kicker>Scale score</Kicker>
               <Text style={styles.statValue}>
-                {result.scaleScore}
+                {result?.scaleScore ?? '—'}
                 <Text style={styles.statUnit}> / 100</Text>
               </Text>
             </View>
             <View style={[styles.stat, styles.statDivided]}>
               <Kicker>Answered</Kicker>
               <Text style={styles.statValue}>
-                {result.answeredCount}
+                {result?.itemsAnswered ?? state.progress.answered}
                 <Text style={styles.statUnit}> questions</Text>
               </Text>
             </View>
@@ -68,7 +98,7 @@ export default function ExamResultScreen({ examId }: ExamResultScreenProps) {
             <Button
               label="View report"
               trailing
-              onPress={() => router.push({ pathname: '/report/[id]', params: { id: examId, from: 'result' } })}
+              onPress={() => router.push({ pathname: '/report/[id]', params: { id: sessionId, from: 'result' } })}
             />
             <Button label="Back to assignments" variant="secondary" onPress={() => router.dismissTo('/')} />
           </View>
@@ -100,6 +130,18 @@ const createStyles = (isTablet: boolean) => {
       flexBasis: 300,
       gap: 12,
     },
+    rules: {
+      gap: 4,
+      paddingLeft: 12,
+      borderLeftWidth: 4,
+      borderLeftColor: colors.warn,
+    },
+    rulesTitle: {
+      fontFamily: fonts.extraBold,
+      fontSize: 16,
+      lineHeight: 22,
+      color: colors.text,
+    },
     levelLabel: {
       fontFamily: fonts.semiBold,
       fontSize: 16,
@@ -120,9 +162,11 @@ const createStyles = (isTablet: boolean) => {
     levelTag: {
       marginBottom: 8,
     },
-    summary: {
-      ...typography.body,
-      marginTop: 8,
+    noLevel: {
+      fontFamily: fonts.extraBold,
+      fontSize: 36,
+      lineHeight: 40,
+      color: colors.text,
     },
     note: {
       fontFamily: fonts.regular,

@@ -3,8 +3,8 @@ import { StyleSheet, Text, TextInput, View } from 'react-native';
 import { theme } from '../../theme';
 import type { SessionItem } from '../../types/exam';
 import { countWords } from '../../utils/format';
-import Kicker from '../Kicker';
 import RemoteImage from '../RemoteImage';
+import Instructions from './Instructions';
 
 const { colors, fonts } = theme;
 
@@ -65,12 +65,7 @@ export default function WritingTaskView({ item, text, onChangeText, onPasteBlock
         <Text style={[styles.stem, { fontSize: isTablet ? 22 : 20, lineHeight: isTablet ? 31 : 28 }]}>{item.stem}</Text>
       </View>
 
-      {!!spec?.instructions && (
-        <View style={styles.instructions}>
-          <Kicker>Your text should include</Kicker>
-          <Text style={styles.instructionsText}>{spec.instructions}</Text>
-        </View>
-      )}
+      {!!spec?.instructions && <Instructions title="Your text should include" text={spec.instructions} />}
 
       {!!item.imageUrl && <RemoteImage uri={item.imageUrl} style={styles.image} accessibilityLabel="Task picture" />}
 
@@ -126,17 +121,6 @@ const styles = StyleSheet.create({
   stem: {
     fontFamily: fonts.semiBold,
     color: colors.text,
-  },
-  instructions: {
-    backgroundColor: colors.surface,
-    padding: 14,
-    gap: 6,
-  },
-  instructionsText: {
-    fontFamily: fonts.regular,
-    fontSize: 15,
-    lineHeight: 22,
-    color: colors.neutral800,
   },
   image: {
     maxWidth: 480,

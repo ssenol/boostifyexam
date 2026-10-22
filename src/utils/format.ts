@@ -19,3 +19,20 @@ export function formatDateTime(iso: string): string {
 export function countWords(text: string): number {
   return text.trim().split(/\s+/).filter(Boolean).length;
 }
+
+// Görev yönergesi bazen cümle sonlarından virgülle birleştirilmiş liste olarak gelir
+// ("Say the name of the app.,Say why you like it.") → ["Say the name of the app.", "Say why you like it."]
+export function instructionLines(text: string): string[] {
+  return text
+    .replace(/([.!?])\s*,\s*/g, '$1\n')
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean);
+}
+
+// 918 → "15 min 18 s"
+export function formatDuration(seconds: number): string {
+  const m = Math.floor(seconds / 60);
+  const s = Math.round(seconds % 60);
+  return m ? `${m} min${s ? ` ${s} s` : ''}` : `${s} s`;
+}

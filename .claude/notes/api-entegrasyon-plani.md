@@ -160,8 +160,15 @@ Sınav **başlatılmaz**: her deneme gerçek ve geri alınamaz.
   proctoring. `certificate.reason = evaluating` iken 30 sn'de bir yenilenir.
 - Sertifika: WebView'da `html`, `expo-print` ile A4 yatay PDF, `fileName` ile `expo-sharing`.
 
+> **Aşama 6 tamamlandı (2026-10-22).** Bitiş ekranı `GET /sessions/:id` → `state.result` (kurallarla bitme notu,
+> puanlanırken 30 sn yenileme). Rapor `GET /results/:id` (`ReportView`: seviye, ölçek, beceri çubukları, focus areas,
+> writing / speaking kriterleri ve geri bildirimi, görev, öğrencinin metni / kaydı, kurallar özeti, sertifika durumu;
+> `evaluating` iken 30 sn yenileme). Sertifika `GET /results/:id/certificate` → WebView (viewport sayfa genişliğine
+> sabitlenir), `expo-print` A4 yatay PDF → `fileName` ile `expo-sharing`. Sahte sunucu (`src/mocks`), progress
+> görünümü ve eski tipler kaldırıldı. Virgülle birleşik görev yönergeleri maddelere ayrılıyor (`instructionLines`).
+
 **Aşama 7: Temizlik ve yayın öncesi.**
-- `src/mocks/examServer.ts` ve kullanılmayan tipler kaldırılır. Notlar ve CLAUDE.md güncellenir.
+- Kullanılmayan bileşen / ikonlar temizlenir. Notlar ve CLAUDE.md güncellenir.
 - Rehberin "Yayın öncesi kontrol listesi" gerçek iPhone ve Android'de tamamlanır.
 
 ## Bekleyen testler
@@ -249,6 +256,20 @@ Demo öğrencinin placement denemesi başlatıldı (2026-10-22), iPhone simülat
 | ☐ | Transcribe başarısız | "Couldn’t be turned into text", teslim yine açık | Sessiz / bozuk kayıt |
 | ☐ | Mikrofon izni reddedilmiş | Kayıt düğmesi yerine uyarı + teknik sorun | İzni reddetmek |
 | ☐ | Android'de kayıt dosyası türü | Sunucu `.m4a` uzantısıyla kabul eder | Fiziksel Android |
+
+### Aşama 6: bitiş, rapor, sertifika
+
+| ✓ | Durum | Beklenen | Nasıl oluşur |
+|---|---|---|---|
+| ✓ | Rapor (seviye, beceriler, focus areas, writing ayrıntısı, teknik sorun, kurallar) | — | İlk deneme |
+| ✓ | Sertifika WebView + "Share as PDF" | — | İlk deneme |
+| ☐ | Bitiş ekranı | Seviye, ölçek puanı, "View report" | Sınavı uygulamada bitirmek |
+| ☐ | Puanlama sürerken (`awaiting_evaluation`, `reason: evaluating`) | "Evaluating" etiketi, 30 sn'de bir yenileme, sertifika pasif | Writing / speaking'li sınavı bitirdikten hemen sonra |
+| ☐ | Seviye verilmedi (`noEvidence` / `insufficientEvidence`) | "Not determined", sertifika `no_level` | 8'den az puanlanan cevap |
+| ☐ | Kurallarla biten sınav | Bitiş ekranında ve raporda uyarı | 3 çıkış ya da 10 dk hareketsizlik |
+| ☐ | Speaking kaydını raporda dinleme | "Listen to your recording" (kısa süreli adres) | Kayıtlı speaking |
+| ☐ | Öğretmen notu (`teacherFeedback`) | "Note from your teacher" | Öğretmen web'den not yazınca |
+| ☐ | PDF tek sayfa ve doğru dosya adı | iOS ve Android ayrı ayrı | Fiziksel cihazlar |
 
 ### Tablet görünümü
 

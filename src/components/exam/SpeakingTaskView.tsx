@@ -16,8 +16,8 @@ import { getErrorMessage } from '../../utils/errors';
 import { formatClock } from '../../utils/format';
 import Button from '../Button';
 import type { DialogConfig } from '../Dialog';
-import Kicker from '../Kicker';
 import RemoteImage from '../RemoteImage';
+import Instructions from './Instructions';
 import { MicIcon, PlayIcon, StopIcon } from '../icons';
 
 const { colors, fonts, typography } = theme;
@@ -238,12 +238,7 @@ export default function SpeakingTaskView({
         <Text style={[styles.stem, { fontSize: isTablet ? 22 : 20, lineHeight: isTablet ? 31 : 28 }]}>{item.stem}</Text>
       </View>
 
-      {!!spec?.instructions && (
-        <View style={styles.instructions}>
-          <Kicker>In your answer</Kicker>
-          <Text style={styles.instructionsText}>{spec.instructions}</Text>
-        </View>
-      )}
+      {!!spec?.instructions && <Instructions title="In your answer" text={spec.instructions} />}
 
       {/* Resim görevin parçası: büyük, dokununca tam ekran */}
       {!!item.imageUrl && (
@@ -410,17 +405,6 @@ const styles = StyleSheet.create({
   stem: {
     fontFamily: fonts.semiBold,
     color: colors.text,
-  },
-  instructions: {
-    backgroundColor: colors.surface,
-    padding: 14,
-    gap: 6,
-  },
-  instructionsText: {
-    fontFamily: fonts.regular,
-    fontSize: 15,
-    lineHeight: 22,
-    color: colors.neutral800,
   },
   image: {
     maxWidth: 560,

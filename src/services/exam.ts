@@ -1,11 +1,13 @@
 import { API_ENDPOINTS, apiGet, apiPost } from "../config/api";
-import * as mock from "../mocks/examServer";
 import type {
   AssignedExam,
   AudioPlay,
+  Certificate,
+  CertificateStatus,
   EventVerdict,
   ExamEventType,
   ExamList,
+  ResultReport,
   ResultSummary,
   SessionState,
 } from "../types/exam";
@@ -68,7 +70,6 @@ const multipart = { headers: { "Content-Type": "multipart/form-data" }, timeout:
 const unwrapState = async (request: Promise<{ state: SessionState }>) => (await request).state;
 
 // Sınav servisi (rehber: …/mobile/exam). Sınavın mantığı sunucudadır: her çağrı güncel state'i döner, ekran onu çizer.
-// Sonuç ve rapor (Aşama 6) henüz sahte sunucuda.
 class ExamService {
   // Sınav listesi: kartlardaki düğmeyi her sınavın action alanı belirler
   getExams(): Promise<ExamList> {
@@ -153,10 +154,17 @@ class ExamService {
     return unwrapState(apiPost(API_ENDPOINTS.productive(sessionId), form, multipart));
   }
 
-  // --- Sonuç ve raporlar (Aşama 6'ya kadar sahte sunucu) --------------------------------------------
-  getResult = mock.getResult;
-  getReport = mock.getReport;
-  getProgressReport = mock.getProgressReport;
+  // --- Rapor ve sertifika ------------------------------------------------------------------------
+
+  // Hatalar: 409 not_finished (deneme bitmemiş), 404 result_not_found. Soruların kendisi ve doğru cevaplar yoktur.
+  getReport(sessionId: string): Promise<{ report: ResultReport; certificate: CertificateStatus }> {
+    return apiGet(API_ENDPOINTS.result(sessionId));
+  }
+
+  // Hazır değilken 409 certificate_not_ready (details.reason: evaluating | no_level)
+  getCertificate(sessionId: string): Promise<Certificate> {
+    return apiGet<Certificate>(API_ENDPOINTS.certificate(sessionId));
+  }
 }
 
 export default new ExamService();

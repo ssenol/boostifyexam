@@ -123,9 +123,12 @@ export default function ExamSessionScreen({ assignmentId, title }: ExamSessionSc
 
   // Süre bitti, son görev teslim edildi ya da kurallarla kapandı
   const phase = state?.phase;
+  const sessionId = state?.sessionId;
   useEffect(() => {
-    if (phase === 'done') router.replace({ pathname: '/exam/[id]/result', params: { id: assignmentId } });
-  }, [phase, assignmentId]);
+    if (phase === 'done' && sessionId) {
+      router.replace({ pathname: '/exam/[id]/result', params: { id: assignmentId, sessionId } });
+    }
+  }, [phase, sessionId, assignmentId]);
 
   const running = !!state && state.phase !== 'done';
   const { markActive } = useExamGuard({

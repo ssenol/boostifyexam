@@ -1,7 +1,6 @@
 import type { EnglishLevel } from './api';
 
-// Sınav akışının tipleri. Liste tipleri mobil sınav API'sine göre (rehber); oturum ve rapor tipleri henüz
-// src/mocks/examServer.ts'in şekli ve sırasıyla API'ye geçirilecek (.claude/notes/api-entegrasyon-plani.md).
+// Sınav akışının tipleri: mobil sınav API'si (_calismalar/BoostifyExam Mobil Uygulama Geliştirici Rehberi.docx).
 
 export const CEFR_LEVELS = ['A1', 'A1+', 'A2', 'A2+', 'B1', 'B1+', 'B2', 'B2+', 'C1', 'C2'] as const;
 export type CefrLevel = (typeof CEFR_LEVELS)[number];
@@ -196,8 +195,8 @@ export interface SessionState {
   currentItem: SessionItem | null;
   section: SectionProgress | null;
   productiveSubmitted: boolean;
-  // Sadece phase = done (Aşama 6'da tiplenecek)
-  result: Record<string, unknown> | null;
+  // Sadece phase = done: seviye ve beceri sonuçları
+  result: ExamResultData | null;
   guard: SessionGuard;
 }
 
@@ -220,173 +219,116 @@ export interface AudioPlay {
   playsLeft: number;
 }
 
-// --- Sahte sunucu tipleri (writing / speaking bileşenleri ve rapor; Aşama 5–6'da kaldırılacak) ------------
+// --- Sonuç, rapor ve sertifika (rehber: "Sonuçlar, rapor ve sertifika") --------------------------------
 
-// --- Sınav oturumu -------------------------------------------------------------------------------
-
-export interface Passage {
-  id: string;
-  title: string;
-  paragraphs: { n: string; text: string }[];
+export interface SkillScore {
+  cefrLevel: string;
+  correct: number;
+  total: number;
 }
 
-export interface AudioClip {
-  id: string;
-  title: string; // "Recording 1"
-  subtitle: string; // "Two-person dialogue"
-  maxPlays: number;
-  // Sunucuda sayılan dinleme sayısı (aynı kayda bağlı ardışık sorularda paylaşılır)
-  playsUsed: number;
-  // TODO: Gerçek ses dosyası. Şimdilik süre simüle ediliyor.
-  url: string | null;
-  durationSeconds: number;
+// Writing / speaking özeti. status: done | pending | failed …; technical: mikrofon çalışmadı (puanlamaya katılmaz)
+export interface ProductiveScore {
+  status: string;
+  score?: number | null;
+  cefrLevel?: string;
+  weight?: number | null;
+  technical?: boolean;
 }
 
-export interface ChoiceOption {
-  key: string; // "A"
+// state.result (phase = done) ve rapordaki result
+export interface ExamResultData {
+  cefrLevel: string;
+  // Seviye verilmedi ("yeterli cevap yok")
+  noEvidence: boolean;
+  insufficientEvidence: boolean;
+  // 0–100 ölçek puanı
+  scaleScore: number | null;
+  confidence: string;
+  skills: Partial<Record<Skill, SkillScore>>;
+  productive: Partial<Record<'writing' | 'speaking', ProductiveScore>>;
+  // Puanlaması süren writing / speaking sayısı
+  productivePending: number;
+  // Geliştirilecek alanlar
+  focusAreas: string[];
+  itemsAnswered: number;
+}
+
+export interface ProductiveFeedback {
+  evidence?: string;
+  strengths?: string[];
+  improvements?: string[];
+}
+
+// Rapordaki writing / speaking ayrıntısı
+export interface ProductiveReport {
+  itemId: string;
+  skill: 'writing' | 'speaking';
+  status: string;
+  prompt: string;
+  instructions: string;
+  imageUrl: string;
+  targetLevel: string;
+  cefrLevel?: string;
+  score: number | null;
+  // Writing metni
   text: string;
+  // Speaking: öğrencinin onayladığı metin
+  transcript: string;
+  // Speaking kaydı: kısa süreli imzalı adres (dinletmek için rapor yeniden çekilir)
+  audioUrl: string;
+  durationSec: number | null;
+  // Kriter puanları (task, grammar, vocabulary, organisation…)
+  criteria: Record<string, number>;
+  feedback: ProductiveFeedback;
+  technical: boolean;
+  teacherFeedback: string;
 }
 
-export interface ChoiceItem {
-  kind: 'choice';
-  id: string;
-  skill: string; // "Language use" | "Reading" | "Listening"
-  instruction: string;
-  stem: string;
-  // TODO: Gerçek görsel URL'si; şimdilik prototipteki gibi açıklama metni
-  imageLabel: string | null;
-  passage: Passage | null;
-  audio: AudioClip | null;
-  options: ChoiceOption[];
+export interface Proctoring {
+  monitored: boolean;
+  tabSwitchCount: number;
+  inactivityWarnCount: number;
+  pasteBlockedCount: number;
+  // Kurallarla bittiyse sebep
+  endedBy: string;
+  endedAt: string | null;
+  flagged: boolean;
 }
 
-export interface WritingTask {
-  kind: 'writing';
-  id: string;
-  skill: 'Writing';
-  title: string;
-  prompt: string;
-  minWords: number;
-  maxWords: number;
-  // Daha önce otomatik kaydedilmiş taslak (devam edilirse)
-  draft: string;
-}
-
-export interface SpeakingTask {
-  kind: 'speaking';
-  id: string;
-  skill: 'Speaking';
-  title: string;
-  prompt: string;
-  imageLabel: string | null;
-  maxSeconds: number;
-}
-
-export type ExamItem = ChoiceItem | WritingTask | SpeakingTask;
-
-export type SectionKey = 'choice' | 'writing' | 'speaking';
-
-export interface SectionInfo {
-  key: SectionKey;
-  label: string; // "Multiple choice"
-  // Bölüm sayacındaki ağırlık (prototipte 4 / 1 / 1)
-  weight: number;
-}
-
-export type SessionStatus = 'active' | 'paused' | 'finished';
-
-// Sunucunun her işlemden sonra döndürdüğü oturum görüntüsü. İstemci süreyi kendisi tutmaz: remainingSeconds
-// sunucudan gelir, aradaki geri sayım yalnızca gösterim içindir.
-export interface SessionSnapshot {
+export interface ResultReport {
   sessionId: string;
-  examId: string;
-  examTitle: string;
-  status: SessionStatus;
-  remainingSeconds: number;
-  sections: SectionInfo[];
-  currentSection: SectionKey;
-  // Bölüm içindeki sıra (1'den başlar)
-  itemNumber: number;
-  item: ExamItem | null;
-  answeredCount: number;
-  // Güvenlik olaylarının sayısı (çıkışlar vb.)
-  exitCount: number;
+  examType: ExamKind;
+  status: AttemptStatus;
+  assignmentTitle: string;
+  schoolName: string;
+  startedAt: string;
+  finishedAt: string;
+  durationSec: number;
+  stopReason: string;
+  result: ExamResultData;
+  productive: ProductiveReport[];
+  proctoring: Proctoring;
 }
 
-export type SecurityEventType =
-  | 'app_background' // başka uygulamaya geçti
-  | 'app_inactive' // kontrol merkezi, bildirimler, uygulama değiştirici
-  | 'window_resized' // iPad split view / slide over
-  | 'paste_blocked'
-  | 'screen_capture'; // TODO: expo-screen-capture ile
-
-export interface SecurityEvent {
-  type: SecurityEventType;
-  detail?: string;
+// reason: '' (hazır) | evaluating | no_level
+export interface CertificateStatus {
+  available: boolean;
+  reason: string;
 }
 
-// --- Sonuç ve rapor ------------------------------------------------------------------------------
-
-export type LevelStatus = 'Provisional' | 'Confirmed';
-
-export interface ExamResult {
-  examId: string;
-  typeLabel: string;
-  level: CefrLevel;
-  status: LevelStatus;
-  summary: string; // "You give reasons and follow longer texts."
-  note: string | null; // Yazma/konuşma değerlendirmesi sürüyorsa açıklama
-  scaleScore: number;
-  answeredCount: number;
-}
-
-export interface SkillResult {
-  skill: string;
-  level: CefrLevel;
-  meta: string; // "9 / 12 correct" | "Score 58"
-}
-
-export interface TaskFeedback {
-  title: string; // "Writing"
-  level: CefrLevel;
-  score: string; // "58 / 100"
-  strengths: string[];
-  improvements: string[];
-  sourceLabel: string; // "Your text"
-  source: string;
-}
-
-export interface ExamReport {
-  examId: string;
-  typeLabel: string; // "Progress"
-  title: string;
-  dateLabel: string;
-  level: CefrLevel;
-  status: LevelStatus;
-  summary: string;
-  scaleScore: number;
-  nextLevel: string; // "B2 · 70"
-  skills: SkillResult[];
-  hardestAreas: string | null;
-  feedback: TaskFeedback[];
-  // Zaman içindeki ilerleme görünümü yalnızca progress serisi varsa
-  hasProgress: boolean;
-}
-
-export interface ProgressPoint {
-  id: string;
-  short: string;
-  dateLabel: string; // tamamlandıysa tarih, değilse "Open now" / "Opens …"
-  level: CefrLevel | null;
-  isOpen: boolean;
-  change: string; // "↑ 2 steps from A2+" | "Baseline" | ""
-}
-
-export interface ProgressReport {
-  title: string; // "Progress over time · 2026–27"
-  note: string;
-  baseline: { level: CefrLevel; short: string } | null;
-  latest: { level: CefrLevel; short: string } | null;
-  steps: number;
-  points: ProgressPoint[];
+export interface Certificate {
+  model: {
+    kind: ExamKind;
+    title: string;
+    studentName: string;
+    level: string;
+    levelName: string;
+    scaleScore: number;
+  };
+  // "Certificate-Gamze-Coşkun-C1.pdf"
+  fileName: string;
+  page: { width: number; height: number; orientation: string; format: string };
+  // Webdeki sertifikanın birebir aynısı; tek başına eksiksiz sayfa (logo gömülü). Resmî belge olarak bu kullanılır.
+  html: string;
 }

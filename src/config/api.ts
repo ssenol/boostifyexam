@@ -26,6 +26,8 @@ export const API_ENDPOINTS = {
   exams: "/exams",
   exam: (assignmentId: string) => `/exams/${assignmentId}`,
   results: "/results",
+  result: (sessionId: string) => `/results/${sessionId}`,
+  certificate: (sessionId: string) => `/results/${sessionId}/certificate`,
   start: (assignmentId: string) => `/exams/${assignmentId}/start`,
   session: (sessionId: string) => `/sessions/${sessionId}`,
   answer: (sessionId: string) => `/sessions/${sessionId}/answer`,

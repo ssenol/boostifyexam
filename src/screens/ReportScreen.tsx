@@ -1,8 +1,7 @@
 import { router } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import ReportProgress from '../components/report/ReportProgress';
-import ReportSingle from '../components/report/ReportSingle';
+import { useCallback, useEffect, useMemo } from 'react';
+import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import ReportView from '../components/report/ReportView';
 import ScreenHeader from '../components/ScreenHeader';
 import StateView from '../components/StateView';
 import useAsyncData from '../hooks/useAsyncData';
@@ -10,88 +9,70 @@ import useBottomSpacing from '../hooks/useBottomSpacing';
 import useResponsive from '../hooks/useResponsive';
 import examService from '../services/exam';
 import { theme } from '../theme';
+import { EXAM_TYPE_LABEL } from '../types/exam';
 
 const { colors, fonts } = theme;
 
-type View_ = 'single' | 'progress';
+// Puanlama sürerken (certificate.reason = evaluating) rapor bu aralıkla yeniden çekilir
+const EVALUATING_POLL_MS = 30_000;
 
 interface ReportScreenProps {
-  examId: string;
+  sessionId: string;
   // Hangi ekrandan gelindi; geri butonunun etiketi buna göre
   from: 'assign' | 'result';
 }
 
-export default function ReportScreen({ examId, from }: ReportScreenProps) {
+export default function ReportScreen({ sessionId, from }: ReportScreenProps) {
   const bottom = useBottomSpacing();
   const { isTablet } = useResponsive();
   const styles = useMemo(() => createStyles(isTablet), [isTablet]);
-  const [view, setView] = useState<View_>('single');
 
-  const loadReport = useCallback(() => examService.getReport(examId), [examId]);
-  const report = useAsyncData(loadReport);
-  const loadProgress = useCallback(() => examService.getProgressReport(), []);
-  const progress = useAsyncData(loadProgress);
+  const load = useCallback(() => examService.getReport(sessionId), [sessionId]);
+  const { data, loading, refreshing, error, reload, reloadQuietly } = useAsyncData(load);
+
+  // Reason boş gelince seviye kesindir ve sertifika düğmesi açılır
+  const evaluating = data?.certificate.reason === 'evaluating';
+  useEffect(() => {
+    if (!evaluating) return;
+    const timer = setInterval(reloadQuietly, EVALUATING_POLL_MS);
+    return () => clearInterval(timer);
+  }, [evaluating, reloadQuietly]);
 
   const header = (
     <ScreenHeader
       backLabel={from === 'assign' ? 'Assignments' : 'Result'}
       onBack={() => router.back()}
-      right={report.data && <Text style={styles.headerRight}>{`${report.data.typeLabel} report`}</Text>}
+      right={data && <Text style={styles.headerRight}>{`${EXAM_TYPE_LABEL[data.report.examType]} report`}</Text>}
     />
   );
 
-  if (!report.data) {
+  if (!data) {
     return (
       <View style={styles.root}>
         {header}
-        <StateView loading={report.loading} error={report.error} onRetry={report.reload} />
+        <StateView loading={loading} error={error} onRetry={reload} />
       </View>
     );
   }
 
-  const showProgress = report.data.hasProgress && view === 'progress';
-
   return (
     <View style={styles.root}>
       {header}
-      <ScrollView contentContainerStyle={[styles.content, { paddingBottom: bottom(24) + 16 }]}>
+      <ScrollView
+        contentContainerStyle={[styles.content, { paddingBottom: bottom(24) + 16 }]}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={reload} tintColor={colors.primary} colors={[colors.primary]} />}
+      >
         <View style={styles.inner}>
-          {report.data.hasProgress && (
-            <View style={styles.toggle} accessibilityRole="tablist">
-              <ToggleButton label="This test" active={!showProgress} onPress={() => setView('single')} />
-              <ToggleButton label="Progress over time" active={showProgress} onPress={() => setView('progress')} divided />
-            </View>
-          )}
-
-          {showProgress ? (
-            progress.data ? (
-              <ReportProgress progress={progress.data} isTablet={isTablet} />
-            ) : (
-              <View style={styles.progressState}>
-                <StateView loading={progress.loading} error={progress.error} onRetry={progress.reload} />
-              </View>
-            )
-          ) : (
-            <ReportSingle report={report.data} isTablet={isTablet} />
-          )}
-
+          <ReportView
+            report={data.report}
+            certificate={data.certificate}
+            isTablet={isTablet}
+            onOpenCertificate={() => router.push({ pathname: '/certificate/[id]', params: { id: sessionId } })}
+          />
           <Text style={styles.footnote}>Questions and answers are not shown in reports.</Text>
         </View>
       </ScrollView>
     </View>
-  );
-}
-
-function ToggleButton({ label, active, onPress, divided }: { label: string; active: boolean; onPress: () => void; divided?: boolean }) {
-  return (
-    <Pressable
-      accessibilityRole="tab"
-      accessibilityState={{ selected: active }}
-      onPress={onPress}
-      style={[toggleStyles.button, divided && toggleStyles.divided, active && toggleStyles.active]}
-    >
-      <Text style={[toggleStyles.label, active && toggleStyles.labelActive]}>{label}</Text>
-    </Pressable>
   );
 }
 
@@ -115,15 +96,6 @@ const createStyles = (isTablet: boolean) => {
       maxWidth: 1040,
       gap: 32,
     },
-    toggle: {
-      flexDirection: 'row',
-      maxWidth: 440,
-      borderWidth: 1,
-      borderColor: colors.divider,
-    },
-    progressState: {
-      minHeight: 240,
-    },
     footnote: {
       fontFamily: fonts.regular,
       fontSize: 13,
@@ -135,27 +107,3 @@ const createStyles = (isTablet: boolean) => {
     },
   });
 };
-
-const toggleStyles = StyleSheet.create({
-  button: {
-    flex: 1,
-    minHeight: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  divided: {
-    borderLeftWidth: 1,
-    borderLeftColor: colors.divider,
-  },
-  active: {
-    backgroundColor: colors.text,
-  },
-  label: {
-    fontFamily: fonts.semiBold,
-    fontSize: 14,
-    color: colors.text,
-  },
-  labelActive: {
-    color: colors.bg,
-  },
-});

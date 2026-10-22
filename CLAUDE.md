@@ -68,8 +68,9 @@ app/
     ├── exam/[id]/
     │   ├── index.tsx    # Intro (GET /exams/:id): yönerge, kurallar, ses testi + mikrofon izni
     │   ├── session.tsx  # Sınav (gestureEnabled: false). Intro'dan replace ile açılır
-    │   └── result.tsx   # Sonuç. Session'dan replace ile açılır
-    └── report/[id].tsx  # Rapor (?from=assign|result)
+    │   └── result.tsx   # Bitiş (?sessionId). Session'dan replace ile açılır
+    ├── report/[id].tsx  # Rapor, id = sessionId (?from=assign|result)
+    └── certificate/[id].tsx # Sertifika (WebView + PDF paylaşma), id = sessionId
 ```
 
 `app/**` dosyaları ince sarmalayıcıdır; ekranın kendisi `src/screens/*.tsx`'te. Yeni ekran: önce `src/screens/`,
@@ -100,7 +101,9 @@ gönderilir (beklenmez) ve tokenlar her durumda silinir. Kullanıcıya ait yeni 
   Text / Question sekmeleriyle. `SectionIntro` bölüm geçişi, `ListeningPlayer` (`expo-audio`), `Watermark`.
 - **Writing / speaking:** `WritingTaskView` (taslak heartbeat'le gider), `SpeakingTaskView` (kayıt → transcribe →
   düzelt → multipart teslim; teknik sorun / geçme). Onaylar ekranın `confirm`'ü ile (birincil true, ikincil false).
-- **Henüz sahte sunucuda:** bitiş ekranı, sonuç ve rapor (Aşama 6): `src/mocks/examServer.ts`.
+- **Bitiş, rapor, sertifika:** `ExamResultScreen` (`state.result`), `ReportScreen` + `ReportView` (`GET /results/:id`),
+  `CertificateScreen` (HTML → WebView, `expo-print` ile PDF, `fileName` ile paylaşma). Puanlama sürerken 30 sn'de bir
+  yenilenir.
 
 ### API katmanı
 
@@ -178,9 +181,8 @@ Kişisel cihazda uygulama kilitlenemez; "Secure mode" = caydırma + tespit + sun
 
 ## Notlar
 
-- [.claude/notes/sinav-akisi-ve-api-sozlesmesi.md](.claude/notes/sinav-akisi-ve-api-sozlesmesi.md): ekran akışı,
-  sunucudan beklenen davranış ve önerilen endpoint'ler, istemcideki secure mode önlemleri, simüle edilenler,
-  prototipten bilinçli farklar, açık ürün soruları.
+- [.claude/notes/sinav-akisi-ve-api-sozlesmesi.md](.claude/notes/sinav-akisi-ve-api-sozlesmesi.md): **tarihsel**
+  (API öncesi sahte sunucu dönemi); güvenlik önlemi fikirleri ve açık ürün soruları için.
 - [.claude/notes/mimari-ve-guvenlik-karari.md](.claude/notes/mimari-ve-guvenlik-karari.md): RN/Expo kararı, kişisel
   cihaz varsayımı, istemci/sunucu güvenlik önlemleri planı, prototip ekran listesi, açık konular (SSO, görseller, endpoint'ler).
 - [.claude/notes/api-entegrasyon-plani.md](.claude/notes/api-entegrasyon-plani.md): gerçek API'ye geçiş planı

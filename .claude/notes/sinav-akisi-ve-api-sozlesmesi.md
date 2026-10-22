@@ -1,3 +1,8 @@
+> **Tarihsel not (2026-10-22):** Bu not API yokken sahte sunucuyla yazıldı; buradaki endpoint önerileri ve
+> `SessionSnapshot` geçersiz. Güncel sözleşme: `_calismalar/BoostifyExam Mobil Uygulama Geliştirici Rehberi.docx`,
+> uygulamadaki karşılığı: `.claude/notes/api-entegrasyon-plani.md`. Güvenlik önlemleri ve açık ürün soruları bölümleri
+> fikir olarak hâlâ okunabilir.
+
 # Sınav Akışı ve API Sözleşmesi (2026-10-13)
 
 API henüz yok. Ekranlar sahte sunucuyla (`src/mocks/examServer.ts`) çalışıyor. Ekranlar yalnızca
