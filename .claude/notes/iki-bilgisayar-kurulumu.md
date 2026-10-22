@@ -27,6 +27,13 @@ Proje Dropbox ile iki Mac arasında senkronlanıyor. `node_modules`, `ios`, `and
   `xcodebuild -workspace ios/BoostifyExam.xcworkspace -scheme BoostifyExam -configuration Debug -destination id=<UDID> -allowProvisioningUpdates -allowProvisioningDeviceRegistration build`
 - `MismatchedApplicationIdentifierEntitlement` → cihazdaki uygulama başka takımla imzalı; uygulama silinip
   tekrar kurulur.
+- `cannot find type '__ObjC::expo' in scope` / `failed to build module 'ExpoModulesCore'; this SDK is not supported
+  by the compiler` → `node_modules/expo-modules-jsi/apple/Products` altındaki xcframework makinede (pod install
+  sırasında) derleniyor ve eski kalmış. DerivedData silmek veya precompiled modülleri kapatmak çözmez:
+  `bash node_modules/expo-modules-jsi/apple/scripts/clear-caches.sh && (cd ios && pod install)`, sonra build.
+  (Mac B'de 13 Ekim'den kalma `node_modules` ile yaşandı.)
+- Cihaz Ues Tech'e kayıtlı olduğu halde "doesn't include the currently selected device" → o Mac'teki profil eski;
+  yukarıdaki `-allowProvisioningUpdates` komutu profili yeniler.
 - Metro açıkken ikinci cihaza kurmak için `npm run ios:ipad` yerine:
   `xcrun devicectl device install app --device <UDID> <DerivedData>/Debug-iphoneos/BoostifyExam.app` +
   `xcrun devicectl device process launch --device <UDID> com.uesturkey.boostifyexam`

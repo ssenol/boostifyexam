@@ -21,6 +21,8 @@ Expo mobil uygulamasıdır. İngilizce, CEFR ölçeğinde, adaptif sınavlar. S�
 npm start                              # Expo dev server (dev client gerekli, Expo Go DESTEKLENMİYOR)
 npm run ios                            # iOS: "Selçuk iPhone" (iPhone 16, UDID ile)
 npm run ios:ipad                       # iOS: "Selçuk iPad Air" (UDID ile)
+npm run ios:sim                        # Simülatör: "iPhone 18 Pro" (adla; simülatör UDID'i her Mac'te farklı)
+npm run ios:sim:ipad                   # Simülatör: "iPad Air 11-inch (M4)"
 npm run android
 npm run typecheck                      # tsc --noEmit
 npm run lint                           # expo lint
@@ -39,7 +41,9 @@ Settings → Build Tools → Gradle → Gradle JDK de JDK 17 seçilmeli.
 
 **Cihaz hedefleme:** `ios` script'leri cihazı UDID ile seçer. Adla (`--device "iPhone 16"`) seçmek, runtime'ı olmayan
 aynı adlı bir simülatöre denk gelip `Unable to boot device because we cannot determine the runtime bundle` hatası
-veriyordu. Cihaz listesi: `xcrun devicectl list devices`.
+veriyordu. Cihaz listesi: `xcrun devicectl list devices`. Simülatör script'leri ise adla seçer, çünkü simülatör
+UDID'i her Mac'te farklıdır; ad iki Mac'te de tek ve runtime'ı olan bir simülatöre denk gelmeli
+(`xcrun simctl list devices available`). Metro zaten açıksa `-- --no-bundler` eklenir.
 
 Proje Dropbox'ta: `node_modules` ve prebuild sonrası `ios`/`android` için `xattr -w com.dropbox.ignored 1 <klasör>`
 uygulanmalı. Prebuild klasörü silip yeniden oluşturduğu için işaret kalkar; prebuild'den **sonra** tekrar uygulayın.
@@ -146,5 +150,8 @@ Kişisel cihazda uygulama kilitlenemez; "Secure mode" = caydırma + tespit + sun
   prototipten bilinçli farklar, açık ürün soruları.
 - [.claude/notes/mimari-ve-guvenlik-karari.md](.claude/notes/mimari-ve-guvenlik-karari.md): RN/Expo kararı, kişisel
   cihaz varsayımı, istemci/sunucu güvenlik önlemleri planı, prototip ekran listesi, açık konular (SSO, görseller, endpoint'ler).
+- [.claude/notes/api-entegrasyon-plani.md](.claude/notes/api-entegrasyon-plani.md): gerçek API'ye geçiş planı
+  (aşama 0–7), rehber ile mevcut kod arasındaki farklar, test hesabı kuralları, açık sorular. API'nin asıl kaynağı
+  `_calismalar/BoostifyExam Mobil Uygulama Geliştirici Rehberi.docx`.
 - [.claude/notes/iki-bilgisayar-kurulumu.md](.claude/notes/iki-bilgisayar-kurulumu.md): ikinci Mac'i hazırlama adımları,
   Ues Tech imzalama, karşılaşılan iOS kurulum hataları ve çözümleri, güncel durum.
