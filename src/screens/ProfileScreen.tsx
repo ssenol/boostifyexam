@@ -126,7 +126,7 @@ export default function ProfileScreen() {
       <ScreenHeader backLabel="Assignments" onBack={() => router.back()} />
       <ScrollView
         contentContainerStyle={[styles.content, { paddingBottom: bottom(16) + 16 }]}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={colors.accent} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={colors.primary} colors={[colors.primary]} />}
       >
         <View style={styles.titleBlock}>
           <Kicker>Profile</Kicker>
@@ -200,7 +200,7 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        <Button label="Sign out" variant="secondary" onPress={() => setConfirmingLogout(true)} />
+        <Button label="Sign out" variant="dark" onPress={() => setConfirmingLogout(true)} />
       </ScrollView>
 
       {passwordPrompt && biometric && (

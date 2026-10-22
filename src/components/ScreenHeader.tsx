@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import useResponsive from '../hooks/useResponsive';
 import { theme } from '../theme';
 import Button from './Button';
+import Logo from './Logo';
 
 const { colors, fonts } = theme;
 
@@ -11,7 +12,7 @@ interface ScreenHeaderProps {
   // "← Assignments" gibi geri butonu
   backLabel?: string;
   onBack?: () => void;
-  // Geri butonu yoksa solda marka yazısı
+  // Geri butonu yoksa solda başlık; verilmezse logo
   title?: string;
   right?: ReactNode;
 }
@@ -27,7 +28,7 @@ export default function ScreenHeader({ backLabel, onBack, title, right }: Screen
       {backLabel && onBack ? (
         <Button label={`← ${backLabel}`} variant="ghost" size="compact" onPress={onBack} />
       ) : (
-        <Text style={styles.title}>{title}</Text>
+        title ? <Text style={styles.title}>{title}</Text> : <View style={styles.logo}><Logo /></View>
       )}
       <View style={styles.right}>{right}</View>
     </View>
@@ -49,6 +50,10 @@ const styles = StyleSheet.create({
     fontSize: 18,
     color: colors.text,
     paddingVertical: 10,
+  },
+  // Başlık yazısıyla aynı yükseklik (paddingVertical 10 + satır)
+  logo: {
+    paddingVertical: 11,
   },
   right: {
     marginLeft: 'auto',

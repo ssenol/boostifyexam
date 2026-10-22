@@ -11,6 +11,10 @@ koda ve notlara yazılmaz):
 - Öğrenci: `boostify1-uniprep-a-student1` (test boyunca bu hesap)
 - Öğretmen: `boostify1-uniprep-teacher` (sadece `403 students_only` kontrolü için)
 
+Geliştirmede login formu demo öğrenciyle dolu gelir: `.env.local` (git dışı, Dropbox ile iki Mac'e gelir) →
+`EXPO_PUBLIC_DEV_USERNAME` / `EXPO_PUBLIC_DEV_PASSWORD`, `LoginScreen` yalnızca `__DEV__`'de okur. Değiştirince Metro
+yeniden başlatılmalı.
+
 ## Ürün kuralları (PDF'ten özet)
 
 - Placement ilk ölçümdür, ortadan (B1–B1+) başlar. Açık bir placement varsa önce o çözülür (`mustTakePlacement`).

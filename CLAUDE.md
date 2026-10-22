@@ -110,10 +110,13 @@ Kaynak: `_calismalar/BoostifyExam Mobil Uygulama Geliştirici Rehberi.docx` (pla
 
 ### Tema
 
-`src/theme/index.ts`: prototipin token'ları (`colors`, `fonts`, `space`, `layout`). Dark mode yok. Köşe yarıçapı
+`src/theme/index.ts`: prototipin token'ları (`colors`, `fonts`, `space`, `layout`). Marka renkleri prototipten farklı:
+mavi `accent` #303FE0, turuncu `primary` / `warn` #F05A25 (logo ve splash ile aynı); birincil düğme turuncu. Logo:
+`<Logo variant="color|white" />` (`assets/images/logo*.png`); `ScreenHeader` başlık verilmezse logoyu gösterir.
+İkon / splash: `assets/images/` (`app.config.js`; iOS ikonu alpha'sız). Dark mode yok. Köşe yarıçapı
 tasarımda bilerek 0. Font: Archivo 400/600/800 (`fonts.regular/semiBold/extraBold`). Tekrarlanan metin stilleri `typography`
 (`kicker`, `kickerAccent`, `body`, `muted`). Ortak bileşenler (`src/components/`):
-- `Button`: `primary` / `secondary` / `ghost` varyantları; `large` / `medium` / `compact` boyutları; `trailing` true ise ok ikonu.
+- `Button`: `primary` (turuncu ana eylem) / `dark` (siyah, belirgin ama ana eylem değil: Sign out) / `secondary` / `ghost` varyantları; `large` / `medium` / `compact` boyutları; `trailing` true ise ok ikonu.
 - `Tag`, `ScreenHeader`, `Dialog` (ek içerik için `children`; klavye açılınca yukarı kayar), `Toast` + `useToast`,
   `StateView` (yükleniyor / hata), `ImagePlaceholder`, `CoverImage` (URL boşsa ya da yüklenemezse yer tutucu),
   `HtmlBlock` (sunucudan gelen HTML, WebView, içeriğe göre yükseklik, linkler tarayıcıda).

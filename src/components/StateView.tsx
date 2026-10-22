@@ -15,7 +15,7 @@ export default function StateView({ loading, error, onRetry }: StateViewProps) {
   return (
     <View style={styles.root}>
       {loading ? (
-        <ActivityIndicator color={colors.accent} size="large" />
+        <ActivityIndicator color={colors.primary} size="large" />
       ) : (
         <View style={styles.error}>
           <Text style={styles.title}>Something went wrong</Text>

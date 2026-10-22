@@ -9,7 +9,8 @@ module.exports = {
     slug: "boostifyexam",
     version: "1.0.0",
     orientation: "portrait",
-    // TODO: icon, splash ve adaptive icon görselleri tasarımdan gelince eklenecek
+    // iOS ikonu alpha kanalsız olmalı (App Store reddeder); kaynak: _calismalar/ios-icon.png
+    icon: "./assets/images/icon.png",
     userInterfaceStyle: "light",
     ios: {
       supportsTablet: true,
@@ -33,6 +34,11 @@ module.exports = {
       buildNumber: "1"
     },
     android: {
+      // Ön plan %90 ölçekli: Android'in maskesi kenarları kırptığında logo kesilmez
+      adaptiveIcon: {
+        foregroundImage: "./assets/images/adaptive-icon.png",
+        backgroundColor: "#303fe0"
+      },
       package: IS_DEV ? `${BUNDLE_ID}.dev` : BUNDLE_ID,
       // Manifest portre: telefonlar açılışta hiç yan dönmez. Tabletlerde kilit app/_layout.tsx'te çalışma anında açılır.
       screenOrientation: "portrait"
@@ -44,6 +50,16 @@ module.exports = {
       "expo-font",
       "expo-screen-orientation",
       "expo-status-bar",
+      // Write'taki ayar (en düzgün görünen splash orada): tam ekran görsel, arka plan görselin mavisi
+      [
+        "expo-splash-screen",
+        {
+          image: "./assets/images/splash.png",
+          resizeMode: "cover",
+          backgroundColor: "#303fe0",
+          enableFullScreenImage_legacy: true
+        }
+      ],
       [
         "expo-audio",
         {

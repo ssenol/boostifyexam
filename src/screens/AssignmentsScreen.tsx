@@ -55,7 +55,6 @@ export default function AssignmentsScreen() {
 
   const header = (
     <ScreenHeader
-      title="Boostify"
       right={<Button label="Profile" variant="ghost" size="compact" onPress={() => router.push('/profile')} />}
     />
   );
@@ -77,7 +76,7 @@ export default function AssignmentsScreen() {
       {header}
       <ScrollView
         contentContainerStyle={[styles.content, { paddingBottom: bottom(16) + 16 }]}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={reload} tintColor={colors.accent} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={reload} tintColor={colors.primary} colors={[colors.primary]} />}
       >
         <View style={styles.titleBlock}>
           <View style={styles.titleRow}>

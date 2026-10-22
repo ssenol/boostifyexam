@@ -1,9 +1,9 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { useFocusEffect } from 'expo-router';
-import { Alert, KeyboardAvoidingView, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Svg, { Path, Rect } from 'react-native-svg';
-import BrandMark from '../components/BrandMark';
+import Svg, { Path } from 'react-native-svg';
+import Logo from '../components/Logo';
 import Button from '../components/Button';
 import Dialog from '../components/Dialog';
 import { toUpperCaseEn } from '../components/Kicker';
@@ -24,6 +24,11 @@ const LEVELS = ['A1', 'A1+', 'A2', 'A2+', 'B1', 'B1+', 'B2', 'B2+', 'C1', 'C2'];
 // Placement ortadan (B1) başlar; progress öğrencinin son seviyesinden
 const START_LEVEL_INDEX = 4;
 
+// Geliştirmede form demo hesapla dolu gelir. Değerler git dışı .env.local'dan okunur (repoda şifre yok);
+// yayın build'inde __DEV__ false olduğu için boştur.
+const DEV_USERNAME = __DEV__ ? (process.env.EXPO_PUBLIC_DEV_USERNAME ?? '') : '';
+const DEV_PASSWORD = __DEV__ ? (process.env.EXPO_PUBLIC_DEV_PASSWORD ?? '') : '';
+
 const FACTS: [string, string][] = [
   ['≤ 40', 'Questions'],
   ['4', 'Skills + grammar'],
@@ -37,8 +42,8 @@ export default function LoginScreen() {
   const { isTablet } = useResponsive();
   const styles = useMemo(() => createStyles(isTablet), [isTablet]);
 
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
+  const [username, setUsername] = useState(DEV_USERNAME);
+  const [password, setPassword] = useState(DEV_PASSWORD);
   const [loading, setLoading] = useState(false);
   const passwordRef = useRef<TextInput>(null);
 
@@ -152,18 +157,16 @@ export default function LoginScreen() {
     enterApp(offer.session);
   };
 
-  // TODO: SSO akışı backend ile netleşince bağlanacak
-  const handleSso = () => {
-    Alert.alert('School account', 'Signing in with your school account is not available yet.');
-  };
-
   const panel = (
-    <View style={[styles.panel, { paddingTop: Math.max(24, insets.top) }]}>
-      <BrandMark color={colors.bg} />
+    // Tablette durum çubuğu ince (24 pt): logo saatin altına yapışmasın diye ek boşluk
+    <View style={[styles.panel, { paddingTop: isTablet ? insets.top + 40 : Math.max(24, insets.top) }]}>
+      <Logo variant="white" height={isTablet ? 32 : 26} />
 
       <View style={styles.hero}>
         <Text style={styles.kicker}>{toUpperCaseEn('Placement · Progress')}</Text>
-        <Text style={styles.heroTitle}>Find your level.</Text>
+        <Text style={styles.heroTitle}>
+          Find your <Text style={styles.heroAccent}>level</Text>.
+        </Text>
         <Text style={styles.heroText}>Adaptive English tests on the CEFR scale.</Text>
       </View>
 
@@ -261,55 +264,57 @@ export default function LoginScreen() {
             disabled={loading}
           />
         )}
-        <Button label="School account (SSO)" variant="secondary" onPress={handleSso} disabled={loading || biometricLoading} />
-      </View>
-
-      <View style={styles.secureNote}>
-        <Svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke={colors.neutral700} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-          <Rect width={18} height={11} x={3} y={11} />
-          <Path d="M7 11V7a5 5 0 0 1 10 0v4" />
-        </Svg>
-        <Text style={styles.secureNoteText}>Secure mode · answers saved as you go</Text>
       </View>
     </View>
   );
+
+  const offerDialog = offer && (
+    <Dialog
+      kicker="Faster sign-in"
+      title={`Use ${offer.label} next time?`}
+      body={`Sign in with ${offer.label} instead of your password. You can change this in your profile.`}
+      primaryLabel={`Use ${offer.label}`}
+      onPrimary={acceptOffer}
+      secondaryLabel="Not now"
+      onSecondary={declineOffer}
+      busy={offerBusy}
+    />
+  );
+
+  // Tablet: panel ve form yerinde durur. Klavye ancak odaktaki alanı kapatırsa form kendi içinde kayar: iOS'ta
+  // ScrollView'ın klavye payı (automaticallyAdjustKeyboardInsets), Android'de pencere klavyeyle küçülmediği için
+  // yalnızca form sütununa verilen pay.
+  if (isTablet) {
+    return (
+      <View style={[styles.root, styles.tabletRow]}>
+        {panel}
+        <KeyboardAvoidingView style={styles.formColumn} behavior="padding" enabled={Platform.OS === 'android'}>
+          <ScrollView
+            contentContainerStyle={[styles.formScroll, { paddingBottom: bottom(24) }]}
+            keyboardShouldPersistTaps="handled"
+            automaticallyAdjustKeyboardInsets
+          >
+            {form}
+          </ScrollView>
+        </KeyboardAvoidingView>
+        {offerDialog}
+      </View>
+    );
+  }
 
   return (
     // Ekranın kökünde (y = 0) olduğu için "padding" iki platformda da doğru hesaplar. Android'in "height" modu ilk
     // yüksekliği sakladığından cihaz döndürülünce yanlış çalışıyordu.
     <KeyboardAvoidingView style={styles.root} behavior="padding">
-      {isTablet ? (
-        <View style={styles.tabletRow}>
-          {panel}
-          <ScrollView
-            contentContainerStyle={[styles.formScroll, { paddingBottom: bottom(24) }]}
-            keyboardShouldPersistTaps="handled"
-          >
-            {form}
-          </ScrollView>
-        </View>
-      ) : (
-        <ScrollView
-          contentContainerStyle={{ paddingBottom: bottom(24) }}
-          keyboardShouldPersistTaps="handled"
-          bounces={false}
-        >
-          {panel}
-          <View style={styles.formScroll}>{form}</View>
-        </ScrollView>
-      )}
-      {offer && (
-        <Dialog
-          kicker="Faster sign-in"
-          title={`Use ${offer.label} next time?`}
-          body={`Sign in with ${offer.label} instead of your password. You can change this in your profile.`}
-          primaryLabel={`Use ${offer.label}`}
-          onPrimary={acceptOffer}
-          secondaryLabel="Not now"
-          onSecondary={declineOffer}
-          busy={offerBusy}
-        />
-      )}
+      <ScrollView
+        contentContainerStyle={{ paddingBottom: bottom(24) }}
+        keyboardShouldPersistTaps="handled"
+        bounces={false}
+      >
+        {panel}
+        <View style={styles.formScroll}>{form}</View>
+      </ScrollView>
+      {offerDialog}
     </KeyboardAvoidingView>
   );
 }
@@ -321,6 +326,9 @@ const createStyles = (isTablet: boolean) => {
     root: {
       flex: 1,
       backgroundColor: colors.bg,
+    },
+    formColumn: {
+      flex: 1,
     },
     tabletRow: {
       flex: 1,
@@ -349,6 +357,10 @@ const createStyles = (isTablet: boolean) => {
       lineHeight: isTablet ? 57 : 37,
       letterSpacing: isTablet ? -1.1 : -0.7,
       color: colors.bg,
+    },
+    // Logodaki "exam" gibi tek kelime turuncu
+    heroAccent: {
+      color: colors.primary,
     },
     heroText: {
       fontFamily: fonts.regular,
@@ -454,21 +466,6 @@ const createStyles = (isTablet: boolean) => {
     actions: {
       gap: 8,
       marginTop: 8,
-    },
-    secureNote: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 8,
-      borderTopWidth: 2,
-      borderTopColor: colors.divider,
-      paddingTop: 12,
-      marginTop: 8,
-    },
-    secureNoteText: {
-      fontFamily: fonts.regular,
-      fontSize: 13,
-      lineHeight: 18,
-      color: colors.neutral700,
     },
   });
 };

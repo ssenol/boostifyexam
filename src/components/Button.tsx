@@ -5,7 +5,8 @@ import { ArrowRightIcon } from './icons';
 
 const { colors, fonts } = theme;
 
-type Variant = 'primary' | 'secondary' | 'ghost';
+// dark: belirgin ama ana eylem olmayan düğme (ör. Sign out); primary turuncu ana eylem için
+type Variant = 'primary' | 'secondary' | 'ghost' | 'dark';
 type Size = 'large' | 'medium' | 'compact';
 
 interface ButtonProps {
@@ -40,7 +41,7 @@ export default function Button({
   accessibilityLabel,
   style,
 }: ButtonProps) {
-  const fg = variant === 'primary' ? colors.bg : variant === 'ghost' ? colors.accent : colors.text;
+  const fg = variant === 'primary' || variant === 'dark' ? colors.bg : variant === 'ghost' ? colors.accent : colors.text;
   const isCompact = size === 'compact';
   const trailingNode = trailing === true ? <ArrowRightIcon color={fg} size={isCompact ? 18 : 20} /> : trailing;
 
@@ -103,13 +104,15 @@ const styles = StyleSheet.create({
 });
 
 const variantStyles = StyleSheet.create({
-  primary: { backgroundColor: colors.accent },
+  primary: { backgroundColor: colors.primary },
+  dark: { backgroundColor: colors.text },
   secondary: { borderColor: colors.divider },
   ghost: { paddingHorizontal: 4 },
 });
 
 const pressedStyles = StyleSheet.create({
-  primary: { backgroundColor: colors.accent700 },
+  primary: { backgroundColor: colors.primaryPressed },
+  dark: { backgroundColor: colors.neutral800 },
   secondary: { backgroundColor: 'rgba(32, 30, 29, 0.14)' },
-  ghost: { backgroundColor: 'rgba(63, 81, 240, 0.18)' },
+  ghost: { backgroundColor: 'rgba(48, 63, 224, 0.18)' },
 });

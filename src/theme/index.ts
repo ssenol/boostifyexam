@@ -1,5 +1,7 @@
 // Tasarım token'ları: prototipin "Modernist" design system'inden (_calismalar/prototip/design-system.css)
 // ve sayfadaki accent/warn override'larından alındı. Köşe yarıçapı tasarımda bilerek 0.
+// Marka renkleri prototipten farklı (kullanıcı kararı, 2026-10-22): mavi #303FE0, turuncu #F05A25 (logo ve splash ile
+// aynı). Tintler prototipten korundu; ton (hue) aynı olduğu için yeni tabanla uyumlu.
 
 export const colors = {
   bg: '#f3f2f2',
@@ -10,7 +12,7 @@ export const colors = {
   // .field > label: text %70
   label: 'rgba(32, 30, 29, 0.7)',
 
-  accent: '#3f51f0',
+  accent: '#303fe0',
   accent100: '#f0f1ff',
   accent200: '#e0e3ff',
   accent300: '#c5cbff',
@@ -21,7 +23,11 @@ export const colors = {
   accent800: '#1e288e',
   accent900: '#1a2060',
 
-  warn: '#e8590c',
+  // Marka turuncusu: birincil düğme ve uyarılar
+  primary: '#f05a25',
+  primaryPressed: '#cc4c1f',
+
+  warn: '#f05a25',
   warn100: '#fff1e8',
   warn700: '#b83d00',
 
@@ -41,9 +47,6 @@ export const colors = {
   neutral700: '#605d5d',
   neutral800: '#444141',
   neutral900: '#2d2b2b',
-
-  // Logo karesindeki dört renk
-  brand: ['#7cc242', '#f2622e', '#ec3f8c', '#3f51f0'],
 } as const;
 
 export const fonts = {
