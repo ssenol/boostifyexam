@@ -282,7 +282,7 @@ export async function getExamDetail(examId: string): Promise<ExamDetail> {
       : `Questions start near your last level${lastLevel ? ` (${lastLevel})` : ''} and adapt to your answers. You won’t see a question twice.`,
     teacherNote: 'Put on your headphones and take the test somewhere quiet.',
     rules: [
-      { title: '60 minutes', detail: 'The timer starts when you tap Start.' },
+      { title: `${DURATION_SECONDS / 60} minutes`, detail: 'The timer starts when you tap Start.' },
       { title: 'No going back', detail: 'One question at a time. Answer to continue.' },
       { title: 'Recordings play twice', detail: 'Plays are counted on the server.' },
       { title: 'Writing and speaking last', detail: 'One task each. Empty tasks score 0.' },

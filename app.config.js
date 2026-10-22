@@ -28,6 +28,8 @@ module.exports = {
         ITSAppUsesNonExemptEncryption: false
       },
       bundleIdentifier: IS_DEV ? `${BUNDLE_ID}.dev` : BUNDLE_ID,
+      // Ues Tech; ios/ senkronlanmadığından takım her prebuild'de buradan yazılır
+      appleTeamId: "9L497LXNLQ",
       buildNumber: "1"
     },
     android: {

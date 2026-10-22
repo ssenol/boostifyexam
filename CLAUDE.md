@@ -30,12 +30,20 @@ npx expo prebuild --clean              # Native projeleri (ios/android) yeniden 
 **Node sürümü:** Node 22 gerekli (sürüm `n` ile değiştiriliyor). Node 16 ile Expo CLI `Blob is not defined` hatası verir;
 böyle bir hata görülürse önce `node -v` kontrol edin.
 
+**Java sürümü (Android):** JDK 17 gerekli. Android Studio'nun gömülü JBR'si (Java 25) ile build,
+`configureCMakeDebug` adımında `WARNING: A restricted method in java.lang.System has been called` hatasıyla düşer.
+Uyarıyı AGP'nin ayrı süreçte çalıştırdığı `prefab` basıyor, bu yüzden `org.gradle.jvmargs`'a
+`--enable-native-access` eklemek işe yaramaz. İkinci bilgisayarda (Android Studio `~/Applications` altında) JDK 17
+Homebrew'dan kurulu (`openjdk@17`) ve `~/.zshrc`'deki `JAVA_HOME` onu gösteriyor. Android Studio'dan build edilecekse
+Settings → Build Tools → Gradle → Gradle JDK de JDK 17 seçilmeli.
+
 **Cihaz hedefleme:** `ios` script'leri cihazı UDID ile seçer. Adla (`--device "iPhone 16"`) seçmek, runtime'ı olmayan
 aynı adlı bir simülatöre denk gelip `Unable to boot device because we cannot determine the runtime bundle` hatası
 veriyordu. Cihaz listesi: `xcrun devicectl list devices`.
 
 Proje Dropbox'ta: `node_modules` ve prebuild sonrası `ios`/`android` için `xattr -w com.dropbox.ignored 1 <klasör>`
-uygulanmalı. Xcode 27 / Device Hub notları için Speak'in `CLAUDE.md`'sine bakın.
+uygulanmalı. Prebuild klasörü silip yeniden oluşturduğu için işaret kalkar; prebuild'den **sonra** tekrar uygulayın.
+Bu klasörler senkronlanmadığından her bilgisayarda ayrıca `npm ci` + `npx expo prebuild` gerekir. Xcode 27 / Device Hub notları için Speak'in `CLAUDE.md`'sine bakın.
 
 Test altyapısı yok; doğrulama `npm run typecheck` + `npm run lint` + fiziksel cihaz.
 
