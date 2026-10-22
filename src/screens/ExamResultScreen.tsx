@@ -80,10 +80,14 @@ export default function ExamResultScreen({ sessionId }: ExamResultScreenProps) {
           <View style={styles.stats}>
             <View style={styles.stat}>
               <Kicker>Scale score</Kicker>
-              <Text style={styles.statValue}>
-                {result?.scaleScore ?? '—'}
-                <Text style={styles.statUnit}> / 100</Text>
-              </Text>
+              {result?.scaleScore != null ? (
+                <Text style={styles.statValue}>
+                  {result.scaleScore}
+                  <Text style={styles.statUnit}> / 100</Text>
+                </Text>
+              ) : (
+                <Text style={styles.statValue}>—</Text>
+              )}
             </View>
             <View style={[styles.stat, styles.statDivided]}>
               <Kicker>Answered</Kicker>

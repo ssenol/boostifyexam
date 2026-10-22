@@ -193,11 +193,11 @@ Kodu yazılmış ama demo hesabın o anki durumu yüzünden henüz denenemeyen d
 | ☐ | `action: resume` (duraklatılmış) | "Paused" etiketi, "Time left" kalan dakika, "Continue" doğrudan sınavı açar | Sınavı başlatıp "Sınavdan çık" |
 | ☐ | `action: resume` (duraklatılmamış) | "In progress" etiketi | Sınav açıkken uygulamayı öldürüp listeye dönmek |
 | ✓ | `action: view_result` | Kartta seviye, "View result" → rapor | Bir sınavı bitirmek |
-| ☐ | `action: wait` | Pasif "Opens 13 Oct" düğmesi, "Opens" tarihi | Başlangıcı ileri tarihli atama |
+| ✓ | `action: wait` | Pasif "Opens 13 Oct" düğmesi, "Opens" tarihi | Başlangıcı ileri tarihli atama |
 | ☐ | `action: closed` | Pasif "Test closed" | Başlanmış ama bitiş tarihi geçmiş atama |
 | ☐ | `action: missed` | Pasif "Missed" | Başlanmadan bitiş tarihi geçmiş atama |
 | ☐ | Progress sınavı kartı | "Progress test" etiketi | Progress ataması |
-| ☐ | `mustTakePlacement` + birden çok sınav | Açık placement en üstte ve vurgulu, diğerleri altta | Placement + progress birlikte atanmış öğrenci |
+| ✓ | `mustTakePlacement` + birden çok sınav | Açık placement en üstte ve vurgulu, diğerleri altta | Placement + progress birlikte atanmış öğrenci |
 | ✓ | `mustTakePlacement: false` | "Take your placement test first" notu yok, vurgu yok | Placement'ı bitirmek |
 | ✓ | Ölçülmüş seviye (`level`) | Üstte "Your level: B1" vb., Profil'de seviye ve tarih | Placement'ı bitirmek |
 | ☐ | Boş `coverImage` / yüklenemeyen resim | Gri yer tutucu | Kapaksız atama (kapak zorunlu, olmayabilir) |
@@ -216,7 +216,7 @@ Kodu yazılmış ama demo hesabın o anki durumu yüzünden henüz denenemeyen d
 | ☐ | Cihazda kayıtlı yüz / parmak izi yok | Teklif çıkmaz; Profil'de düğme pasif, "Set up … first" | Kayıtsız cihaz / simülatör |
 | ☐ | Mikrofon izni reddedildi | Intro'da uyarı + Settings, Start yine açık; Profil'de "Settings" | İzni reddetmek |
 | ☐ | Intro'da kulaklıkla ses testi | Ses kulaklıktan gelir, telefon sessizdeyken de çalar | Fiziksel cihaz, sessiz mod |
-| ☐ | `parts` bölümleri kapalı sınav | Kapalı bölümün cihaz kontrolü ve kuralı görünmez | Listening / speaking'siz atama |
+| ✓ | `parts` bölümleri kapalı sınav | Kapalı bölümün cihaz kontrolü ve kuralı görünmez | Listening / speaking'siz atama |
 | ☐ | Intro'da linkli yönerge | Link tarayıcıda açılır | `instructionsHtml` içinde link |
 
 ### Aşama 4: sınav ekranı (çoktan seçmeli)
@@ -230,10 +230,10 @@ Demo öğrencinin placement denemesi başlatıldı (2026-10-22), iPhone simülat
 | ☐ | iPad: yan panel, yatayda yan okuma metni, dikeyde sekmeler | Tablet düzeni | `npm run ios:sim:ipad` |
 | ☐ | Cihaz değiştirme | iPhone'da "Pause and leave" → iPad'de Continue aynı yerden | İki simülatör, aynı hesap |
 | ☐ | Web'de başlayıp uygulamada bitirme | Aynı deneme açılır; `guard.tabSwitchCount` webdeki çıkışları da içerir | Web panelinden başlatılan sınav |
-| ☐ | 2. çıkış | "Last warning" penceresi | Yeni atama |
+| ✓ | 2. çıkış | "Last warning" penceresi | Yeni atama |
 | ☐ | 3. çıkış | Sınav kurallarla biter, bitiş ekranı | Yeni atama |
-| ☐ | Hareketsizlik 5 dk / 10 dk | "Are you still there?" / sınav biter | Yeni atama, ekrana dokunmadan beklemek |
-| ☐ | Süre biter | Sunucu kapatır, writing taslağı teslim edilir, bitiş ekranı | Kısa süreli atama |
+| ½ | Hareketsizlik 5 dk (✓) / 10 dk (☐) | "Are you still there?" / sınav biter | Yeni atama, ekrana dokunmadan beklemek |
+| ½ | Süre biter | Sunucu kapatır (✓), bitiş ekranı (✓); writing taslağının otomatik teslimi (☐) | Kısa süreli atama |
 | ☐ | Uçak modunda cevap | "Offline" göstergesi, otomatik tekrar; geri gelince aynı soru iki kez sayılmaz | Cevap gönderirken ağı kesmek |
 | ☐ | Resimli soru / resimli şık / true_false | Görsel, yüklenemezse "Try again" | Bu tür soru gelirse |
 | ☐ | Uygulama arka plandayken dinleme | Çalma durur, dönünce "Continue playing" (hak harcamaz) | Listening sırasında çıkmak (çıkış sayılır!) |
@@ -264,13 +264,19 @@ Demo öğrencinin placement denemesi başlatıldı (2026-10-22), iPhone simülat
 |---|---|---|---|
 | ✓ | Rapor (seviye, beceriler, focus areas, writing ayrıntısı, teknik sorun, kurallar) | — | İlk deneme |
 | ✓ | Sertifika WebView + "Share as PDF" | — | İlk deneme |
-| ☐ | Bitiş ekranı | Seviye, ölçek puanı, "View report" | Sınavı uygulamada bitirmek |
+| ✓ | Bitiş ekranı | Seviye, ölçek puanı, "View report" | Sınavı uygulamada bitirmek |
 | ☐ | Puanlama sürerken (`awaiting_evaluation`, `reason: evaluating`) | "Evaluating" etiketi, 30 sn'de bir yenileme, sertifika pasif | Writing / speaking'li sınavı bitirdikten hemen sonra |
-| ☐ | Seviye verilmedi (`noEvidence` / `insufficientEvidence`) | "Not determined", sertifika `no_level` | 8'den az puanlanan cevap |
+| ✓ | Seviye verilmedi (`noEvidence` / `insufficientEvidence`) | "Not determined", sertifika `no_level` | 8'den az puanlanan cevap |
 | ☐ | Kurallarla biten sınav | Bitiş ekranında ve raporda uyarı | 3 çıkış ya da 10 dk hareketsizlik |
 | ☐ | Speaking kaydını raporda dinleme | "Listen to your recording" (kısa süreli adres) | Kayıtlı speaking |
 | ☐ | Öğretmen notu (`teacherFeedback`) | "Note from your teacher" | Öğretmen web'den not yazınca |
 | ☐ | PDF tek sayfa ve doğru dosya adı | iOS ve Android ayrı ayrı | Fiziksel cihazlar |
+
+Placement 3 (2026-10-22, 10 dk, writing/speaking yok): 1. ve 2. çıkış uyarısı, 5 dk hareketsizlik uyarısı, son 5 dk
+kırmızı süre, süre dolunca sunucunun kapatması (`status: expired`, `stopReason: time_up`), 3 cevapla "Not determined"
+(`minAnswersForLevel: 8`), sertifika `no_level`. Sayaç 0'a inince kapanış 10–15 sn sürdü: uygulama dışında geçen süre
+sayılmıyor, sunucu kapatmayı kısa gecikmeyle yapıyor (sorun değil). Liste: tamamlanan sınav Tests'ten çıkarıldı
+(Results'ta), Placement 2 (`wait`) pasif "Opens …".
 
 ### Tablet görünümü
 
@@ -295,3 +301,4 @@ Demo öğrencinin placement denemesi başlatıldı (2026-10-22), iPhone simülat
 1. **Arayüz dili İngilizce kalıyor.** Rehberdeki Türkçe hata ve bilgi metinleri İngilizceye çevrilerek kullanılır.
 2. **Progress serisi ve "progress over time" görünümü kaldırılıyor** (Aşama 2 ve 6). API'de karşılığı yok.
 3. **Profil ekranını mevcut temaya göre Claude tasarlıyor** (Aşama 1): ad, okul, kampüs, sınıf, seviye, çıkış.
+4. **Tamamlanan sınavlar (`action: view_result`) Tests sekmesinde gösterilmez**, yalnızca Results'ta görünür.

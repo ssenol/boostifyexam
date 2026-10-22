@@ -93,8 +93,8 @@ export const RECEPTIVE_SKILLS: Skill[] = ['language_use', 'reading', 'listening'
 // receptive: çoktan seçmeli bölümler · productive: writing ve speaking · done: bitti
 export type SessionPhase = 'receptive' | 'productive' | 'done';
 
-// awaiting_evaluation: writing / speaking puanlanıyor
-export type AttemptStatus = 'in_progress' | 'awaiting_evaluation' | 'completed';
+// awaiting_evaluation: writing / speaking puanlanıyor · expired: süre doldu (stopReason: time_up)
+export type AttemptStatus = 'in_progress' | 'awaiting_evaluation' | 'completed' | 'expired';
 
 export type ItemType = 'single_choice' | 'true_false' | 'writing_prompt' | 'speaking_prompt';
 

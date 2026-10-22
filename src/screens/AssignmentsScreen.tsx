@@ -44,10 +44,12 @@ export default function AssignmentsScreen() {
     }, [reloadQuietly]),
   );
 
-  // Açık bir placement varsa önce o çözülmeli: en üstte ve vurgulu
+  // Tamamlanan sınavlar Tests'te gösterilmez, Results sekmesinde görünür (kullanıcı kararı).
+  // Açık bir placement varsa önce o çözülmeli: en üstte ve vurgulu.
   const exams = useMemo(() => {
     if (!data) return [];
-    const { exams: all, mustTakePlacement } = data.list;
+    const { mustTakePlacement } = data.list;
+    const all = data.list.exams.filter((e) => e.action !== 'view_result');
     if (!mustTakePlacement) return all;
     const first = (e: AssignedExam) => e.examType === 'placement' && isActionable(e);
     return [...all.filter(first), ...all.filter((e) => !first(e))];
