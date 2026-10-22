@@ -12,6 +12,7 @@ import useBottomSpacing from '../hooks/useBottomSpacing';
 import useResponsive from '../hooks/useResponsive';
 import examService from '../services/exam';
 import { theme } from '../theme';
+import { levelColors } from '../theme/levels';
 import { EXAM_TYPE_TAG, type AssignedExam, type ResultSummary } from '../types/exam';
 import { formatDate, formatDateTime } from '../utils/format';
 
@@ -27,7 +28,8 @@ export default function AssignmentsScreen() {
   const bottom = useBottomSpacing();
   const { isTablet } = useResponsive();
   const styles = useMemo(() => createStyles(isTablet), [isTablet]);
-  const [tab, setTab] = useState<Tab>('tests');
+  // Seçilmemişse: açık sınav yok ama sonuç varsa Results ile açılır
+  const [selectedTab, setTab] = useState<Tab | null>(null);
 
   const load = useCallback(async () => {
     const [list, results] = await Promise.all([examService.getExams(), examService.getResults()]);
@@ -72,6 +74,7 @@ export default function AssignmentsScreen() {
 
   const { level, mustTakePlacement } = data.list;
   const { results } = data;
+  const tab: Tab = selectedTab ?? (exams.length === 0 && results.length > 0 ? 'results' : 'tests');
 
   return (
     <View style={styles.root}>
@@ -85,7 +88,9 @@ export default function AssignmentsScreen() {
             <Text style={styles.title} accessibilityRole="header">Assignments</Text>
             <View style={styles.levelBox}>
               <Kicker>Your level</Kicker>
-              <Text style={level ? styles.level : styles.levelEmpty}>{level ? level.cefrLevel : 'Not measured yet'}</Text>
+              <Text style={level ? [styles.level, { color: levelColors(level.cefrLevel).fg }] : styles.levelEmpty}>
+                {level ? level.cefrLevel : 'Not measured yet'}
+              </Text>
             </View>
           </View>
           <View style={styles.tabs} accessibilityRole="tablist">
@@ -103,7 +108,12 @@ export default function AssignmentsScreen() {
               </View>
             )}
             {exams.length === 0 ? (
-              <EmptyNote title="No tests assigned to you" body="New tests from your school appear here." />
+              // Bitmiş sınavlar Results'ta; liste boşsa sebebi ona göre söylenir
+              results.length > 0 ? (
+                <EmptyNote title="No new tests assigned" body="You’ve finished all your assigned tests. Your results are in the Results tab." />
+              ) : (
+                <EmptyNote title="No tests assigned to you" body="New tests from your school appear here." />
+              )
             ) : (
               <View style={styles.grid}>
                 {exams.map((exam) => (
@@ -243,7 +253,7 @@ function ResultCard({ result, isTablet }: { result: ResultSummary; isTablet: boo
           <Text style={cardStyles.noLevel}>Level not determined</Text>
         ) : (
           <View style={cardStyles.levelRow}>
-            <Text style={cardStyles.level}>{result.cefrLevel}</Text>
+            <Text style={[cardStyles.level, { color: levelColors(result.cefrLevel).fg }]}>{result.cefrLevel}</Text>
             {result.evaluating && <Tag label="Evaluating" tone="neutral" />}
           </View>
         )}
@@ -304,7 +314,7 @@ const createStyles = (isTablet: boolean) => {
       fontFamily: fonts.extraBold,
       fontSize: 22,
       lineHeight: 26,
-      color: colors.accent,
+      color: colors.primary,
     },
     levelEmpty: {
       fontFamily: fonts.semiBold,
@@ -454,7 +464,7 @@ const cardStyles = StyleSheet.create({
     fontFamily: fonts.extraBold,
     fontSize: 32,
     lineHeight: 34,
-    color: colors.accent,
+    color: colors.primary,
   },
   noLevel: {
     fontFamily: fonts.extraBold,
@@ -469,13 +479,11 @@ const cardStyles = StyleSheet.create({
   },
 });
 
+// Sekme çizgisinin hemen altında durduğu için kendi üst çizgisi yok
 const emptyStyles = StyleSheet.create({
   wrap: {
     maxWidth: 440,
     gap: 4,
-    borderTopWidth: 2,
-    borderTopColor: colors.divider,
-    paddingTop: 14,
   },
   title: {
     fontFamily: fonts.extraBold,

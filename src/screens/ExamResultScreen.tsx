@@ -11,6 +11,7 @@ import useBottomSpacing from '../hooks/useBottomSpacing';
 import useResponsive from '../hooks/useResponsive';
 import examService from '../services/exam';
 import { theme } from '../theme';
+import { levelColors } from '../theme/levels';
 import { EXAM_TYPE_LABEL } from '../types/exam';
 import { resultNotes } from '../utils/resultNotes';
 
@@ -59,7 +60,7 @@ export default function ExamResultScreen({ sessionId }: ExamResultScreenProps) {
             <Text style={styles.noLevel}>Not determined</Text>
           ) : (
             <View style={styles.levelRow}>
-              <Text style={styles.level}>{result.cefrLevel}</Text>
+              <Text style={[styles.level, { color: levelColors(result.cefrLevel).fg }]}>{result.cefrLevel}</Text>
               {evaluating && <Tag label="Evaluating" tone="neutral" style={styles.levelTag} />}
             </View>
           )}
@@ -157,7 +158,7 @@ const createStyles = (isTablet: boolean) => {
       fontSize: isTablet ? 112 : 88,
       lineHeight: isTablet ? 104 : 82,
       letterSpacing: -2,
-      color: colors.accent,
+      color: colors.primary,
     },
     levelTag: {
       marginBottom: 8,

@@ -5,12 +5,11 @@ const { colors, fonts } = theme;
 
 interface TagProps {
   label: string;
-  // level: CEFR seviyesi (turuncu); koyu ton, küçük yazıda okunurluk için
-  tone?: 'accent' | 'neutral' | 'warn' | 'level';
+  tone?: 'accent' | 'neutral' | 'warn';
   style?: StyleProp<ViewStyle>;
 }
 
-const BACKGROUND = { accent: colors.accent, neutral: colors.neutral800, warn: colors.warn700, level: colors.primaryPressed } as const;
+const BACKGROUND = { accent: colors.accent, neutral: colors.neutral800, warn: colors.warn700 } as const;
 
 // Prototipteki .tag-accent / .tag-neutral, renkleri ters: açık zeminler kartların gri zemininde kayboluyordu
 // (kullanıcı kararı, 2026-10-22). Koyu zemin, açık yazı.

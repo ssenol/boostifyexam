@@ -261,6 +261,8 @@ export interface ExamResultData {
   // Geliştirilecek alanlar
   focusAreas: string[];
   itemsAnswered: number;
+  // capped: genel seviye writing / speaking seviyesinin (productiveLevel) en fazla bir bant üstünde tutuldu
+  profile?: { capped: boolean; productiveLevel: string } | null;
 }
 
 export interface ProductiveFeedback {
@@ -294,6 +296,12 @@ export interface ProductiveReport {
   teacherFeedback: string;
   // Genel seviyedeki ağırlık (0.125 = %12.5)
   weight: number | null;
+  // Değerlendirme öğretmen incelemesi istedi
+  needsReview: boolean;
+  // Öğrenci transcript'i onayladı ("Checked by the student")
+  transcriptConfirmed: boolean;
+  // Speaking ses ölçümleri (0–100); prosody = webde "Intonation"
+  voice: { pronunciation?: number; fluency?: number; prosody?: number; wordsPerMinute?: number } | null;
 }
 
 export interface Proctoring {
@@ -323,7 +331,8 @@ export interface ResultReport {
   stopReason: string;
   result: ExamResultData;
   productive: ProductiveReport[];
-  proctoring: Proctoring;
+  // Web'de çözülen sınavda null gelir
+  proctoring: Proctoring | null;
 }
 
 // reason: '' (hazır) | evaluating | no_level

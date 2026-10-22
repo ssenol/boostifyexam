@@ -15,6 +15,7 @@ import { store } from '../store';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { selectCurrentUser, setCredentials, setUser } from '../store/slices/authSlice';
 import { theme } from '../theme';
+import { levelColors } from '../theme/levels';
 import { getErrorMessage, isApiError } from '../utils/errors';
 import { formatDate } from '../utils/format';
 import { performLogout } from '../utils/logoutHelper';
@@ -138,7 +139,7 @@ export default function ProfileScreen() {
           <Kicker>English level</Kicker>
           {level ? (
             <>
-              <Text style={styles.level}>{level.cefrLevel}</Text>
+              <Text style={[styles.level, { color: levelColors(level.cefrLevel).fg }]}>{level.cefrLevel}</Text>
               <Text style={typography.muted}>{`Measured ${formatDate(level.measuredAt)}`}</Text>
             </>
           ) : (
@@ -292,7 +293,7 @@ const createStyles = (isTablet: boolean) => {
       fontFamily: fonts.extraBold,
       fontSize: 40,
       lineHeight: 44,
-      color: colors.accent,
+      color: colors.primary,
     },
     levelEmpty: {
       fontFamily: fonts.extraBold,

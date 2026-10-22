@@ -16,6 +16,14 @@ export function formatDateTime(iso: string): string {
   return `${formatDate(iso)}, ${time}`;
 }
 
+// Başlama–bitiş: aynı gün "13 Oct 2026, 14:43–15:14", farklı gün iki tam tarih
+export function formatDateRange(startIso: string, endIso: string): string {
+  const time = (iso: string) => new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+  return formatDate(startIso) === formatDate(endIso)
+    ? `${formatDate(startIso)}, ${time(startIso)}–${time(endIso)}`
+    : `${formatDateTime(startIso)} – ${formatDateTime(endIso)}`;
+}
+
 export function countWords(text: string): number {
   return text.trim().split(/\s+/).filter(Boolean).length;
 }

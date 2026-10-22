@@ -305,6 +305,14 @@ etiketi "Placement" / "Progress".
 - Aşama 3'e kadar "Start" → Intro hata verir (Intro hâlâ sahte sunucuda, gerçek id'yi tanımaz).
 - Aşama 4'e kadar "Continue" → Session, Aşama 6'ya kadar "View result" / "View report" → Rapor sahte sunucuda.
 
+## Backend'e iletilecekler
+
+1. **Web kayıtları iOS'ta çalınamıyor (2026-10-22).** Web'de alınan speaking kayıtları `audio/webm` (tarayıcı
+   MediaRecorder, süre bilgisi yok). iOS'un oynatıcısı WebM açmıyor; WebView ile de ses alınamadı. Öneri: sunucu
+   kaydı alırken m4a (AAC) ya da mp3 kopyası üretsin ve raporda onun adresini versin (ör. `audioUrl` m4a olsun ya da
+   `audioUrlCompat`). Uygulama şu an iOS'ta WebM için "can’t be played in the app yet" notu gösteriyor
+   (`ReportView` → `WebmNotice`). Uygulamada alınan kayıtlar m4a, sorun yok. Örnek: placementstu18.
+
 ## Test hesabı kuralları
 
 - Her başlatılan deneme gerçek bir sonuçtur ve geri alınamaz. Sınav başlatmadan önce kullanıcıya sorulur.

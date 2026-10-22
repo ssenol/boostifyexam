@@ -1,7 +1,9 @@
 import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
-import { StyleSheet, Text, View } from 'react-native';
+import { Platform, StyleSheet, Text, View } from 'react-native';
 import { theme } from '../../theme';
+import { levelColors } from '../../theme/levels';
 import {
+  EXAM_TYPE_LABEL,
   RECEPTIVE_SKILLS,
   SKILL_LABEL,
   type CertificateStatus,
@@ -9,12 +11,13 @@ import {
   type ProductiveScore,
   type ResultReport,
 } from '../../types/exam';
-import { formatDateTime, formatDuration } from '../../utils/format';
+import { formatClock, formatDateRange, formatDuration } from '../../utils/format';
 import { resultNotes } from '../../utils/resultNotes';
 import Button from '../Button';
 import Instructions from '../exam/Instructions';
 import { PlayIcon } from '../icons';
 import Kicker from '../Kicker';
+import LevelBadge from '../LevelBadge';
 import RemoteImage from '../RemoteImage';
 import Tag from '../Tag';
 
@@ -55,41 +58,65 @@ export default function ReportView({ report, certificate, isTablet, onOpenCertif
   const hasSkills =
     RECEPTIVE_SKILLS.some((skill) => result.skills[skill]) || !!result.productive.writing || !!result.productive.speaking;
 
-  // Webdeki gibi boş bilgiler gösterilmez (puan yoksa, hiç ayrılmadıysa)
+  // Özet kartının altındaki bilgiler; webdeki gibi boşsa gösterilmez (hiç ayrılmadıysa)
   const facts = (
     [
-      result.scaleScore != null && ['Scale score', `${result.scaleScore} / 100`],
-      ['Questions', String(result.itemsAnswered)],
       ['Time in the test', formatDuration(report.durationSec)],
       // Webdeki "Left the test" duraklatma sayısıdır (Pause and leave + sunucunun otomatik duraklatmaları)
       report.pauseCount > 0 && ['Left the test', `${report.pauseCount} ${report.pauseCount === 1 ? 'time' : 'times'}`],
-      // Başlama ve bitiş yan yana (telefonda iki sütun)
-      ['Started', formatDateTime(report.startedAt)],
-      ['Finished', formatDateTime(report.finishedAt)],
+      // Uzun olduğu için telefonda tam satır
+      ['Date', formatDateRange(report.startedAt, report.finishedAt)],
     ] as const
   ).filter((f): f is [string, string] => !!f);
 
   const notes = resultNotes(result, {
     timeUp: report.stopReason === 'time_up',
-    endedByRules: !!report.proctoring.endedBy,
+    endedByRules: !!report.proctoring?.endedBy,
   });
 
   return (
     <View style={styles.wrap}>
       <View style={styles.top}>
-        <Kicker accent>{report.assignmentTitle}</Kicker>
-        <Text style={styles.overall}>Overall level</Text>
-        {noLevel ? (
-          <Text style={styles.noLevel}>Not determined</Text>
-        ) : (
-          <>
-            <Text style={[styles.level, { fontSize: isTablet ? 80 : 64, lineHeight: isTablet ? 74 : 60 }]}>{result.cefrLevel}</Text>
-            {/* Ölçümün kesinliği ve puanlama durumu seviyenin altında sade metin */}
-            {(evaluating || !!confidence) && (
-              <Text style={styles.levelNote}>{[evaluating && 'Evaluating', confidence].filter(Boolean).join(' · ')}</Text>
+        <View style={styles.heading}>
+          <Kicker accent>{EXAM_TYPE_LABEL[report.examType]}</Kicker>
+          <Text style={styles.title}>{report.assignmentTitle}</Text>
+        </View>
+
+        {/* Özet kartı: solda seviye, sağda ölçek puanı ve soru sayısı */}
+        <View style={[styles.summaryCard, isTablet && styles.summaryCardTablet]}>
+          <View style={styles.summaryLevel}>
+            <Kicker>Overall level</Kicker>
+            {noLevel ? (
+              <Text style={[styles.level, styles.levelNone]}>—</Text>
+            ) : (
+              <Text
+                style={[
+                  styles.level,
+                  { fontSize: isTablet ? 72 : 56, lineHeight: isTablet ? 76 : 60, color: levelColors(result.cefrLevel).fg },
+                ]}
+              >
+                {result.cefrLevel}
+              </Text>
             )}
-          </>
-        )}
+            <Text style={styles.levelNote}>
+              {noLevel ? 'Not determined' : [evaluating && 'Evaluating', confidence].filter(Boolean).join(' · ')}
+            </Text>
+          </View>
+          <View style={styles.summaryStats}>
+            <View style={styles.summaryStat}>
+              <Kicker>Scale score</Kicker>
+              <Text style={styles.summaryValue}>
+                {result.scaleScore != null ? result.scaleScore : '—'}
+                {result.scaleScore != null && <Text style={styles.summaryUnit}> / 100</Text>}
+              </Text>
+            </View>
+            <View style={styles.summaryStat}>
+              <Kicker>Questions</Kicker>
+              <Text style={styles.summaryValue}>{result.itemsAnswered}</Text>
+            </View>
+          </View>
+        </View>
+
         {evaluating && (
           <Text style={styles.summary}>Your writing and speaking are being scored. This page updates by itself.</Text>
         )}
@@ -99,10 +126,17 @@ export default function ReportView({ report, certificate, isTablet, onOpenCertif
             <Text style={styles.noticeText}>{note}</Text>
           </View>
         ))}
+        {!noLevel && result.profile?.capped && !!result.profile.productiveLevel && (
+          <View style={styles.info}>
+            <Text style={styles.infoText}>
+              {`Your overall level takes your writing and speaking (${result.profile.productiveLevel}) into account: it is at most one CEFR band above them.`}
+            </Text>
+          </View>
+        )}
 
         <View style={styles.facts}>
           {facts.map(([label, value]) => (
-            <View key={label} style={[styles.fact, { flexBasis: isTablet ? '20%' : '50%' }]}>
+            <View key={label} style={[styles.fact, { flexBasis: isTablet ? '25%' : label === 'Date' ? '100%' : '50%' }]}>
               <Text style={typography.muted}>{label}</Text>
               <Text style={styles.factValue}>{value}</Text>
             </View>
@@ -170,7 +204,7 @@ function SkillCard({ name, tag, ratio, meta, isTablet }: { name: string; tag: st
     <View style={[styles.skill, { flexBasis: isTablet ? '30%' : '100%' }]}>
       <View style={styles.skillHead}>
         <Text style={styles.skillName}>{name}</Text>
-        {!!tag && <Tag label={tag} tone="level" />}
+        {!!tag && <LevelBadge level={tag} />}
       </View>
       <View style={styles.track} accessibilityLabel={`${name}: ${meta}`}>
         <View style={[styles.fill, { width: `${Math.round(Math.min(1, ratio) * 100)}%` }]} />
@@ -183,6 +217,7 @@ function SkillCard({ name, tag, ratio, meta, isTablet }: { name: string; tag: st
 // Writing / speaking: seviye ya da durum etiketi + puan
 function ProductiveCard({ name, score, isTablet }: { name: string; score: ProductiveScore; isTablet: boolean }) {
   const scored = score.status === 'done' && score.score != null;
+  const skipped = score.status === 'skipped';
   const pending = score.status === 'pending' || score.status === 'evaluating';
   return (
     <View style={[styles.skill, { flexBasis: isTablet ? '30%' : '100%' }]}>
@@ -190,14 +225,24 @@ function ProductiveCard({ name, score, isTablet }: { name: string; score: Produc
         <Text style={styles.skillName}>{name}</Text>
         {score.technical ? (
           <Tag label="Microphone problem" tone="warn" />
+        ) : skipped ? (
+          <Tag label="Skipped" tone="neutral" />
         ) : pending ? (
           <Tag label="Evaluating" tone="neutral" />
         ) : (
-          !!score.cefrLevel && <Tag label={score.cefrLevel} tone="level" />
+          !!score.cefrLevel && <LevelBadge level={score.cefrLevel} />
         )}
       </View>
       <Text style={typography.muted}>
-        {scored ? `Score ${score.score}/100` : score.technical ? 'Not measured' : pending ? 'Being scored…' : 'Not scored'}
+        {scored
+          ? `Score ${score.score}/100`
+          : score.technical
+            ? 'Not measured'
+            : skipped
+              ? 'Score 0/100'
+              : pending
+                ? 'Being scored…'
+                : 'Not scored'}
       </Text>
     </View>
   );
@@ -208,6 +253,11 @@ function TaskFeedback({ task }: { task: ProductiveReport }) {
   const nextSteps = task.feedback.improvements ?? [];
   const criteria = Object.entries(task.criteria);
   const answer = task.skill === 'writing' ? task.text : task.transcript;
+  // Speaking ses ölçümleri (webdeki adlarla)
+  const voice: [string, number][] = [];
+  if (task.voice?.pronunciation != null) voice.push(['Pronunciation', task.voice.pronunciation]);
+  if (task.voice?.fluency != null) voice.push(['Fluency', task.voice.fluency]);
+  if (task.voice?.prosody != null) voice.push(['Intonation', task.voice.prosody]);
 
   return (
     <View style={styles.section}>
@@ -215,9 +265,12 @@ function TaskFeedback({ task }: { task: ProductiveReport }) {
         <Text style={styles.sectionTitle}>{SKILL_LABEL[task.skill]}</Text>
         {task.technical ? (
           <Tag label="Microphone problem" tone="warn" />
+        ) : task.status === 'skipped' ? (
+          <Tag label="Skipped" tone="neutral" />
         ) : (
-          !!task.cefrLevel && <Tag label={task.cefrLevel} tone="level" />
+          !!task.cefrLevel && <LevelBadge level={task.cefrLevel} />
         )}
+        {task.needsReview && <Tag label="Teacher review" tone="neutral" />}
         {task.score != null && <Text style={typography.muted}>{`Score ${task.score}/100`}</Text>}
         {task.weight != null && (
           <Text style={typography.muted}>{`Weight in the overall level: ${Math.round(task.weight * 1000) / 10}%`}</Text>
@@ -236,22 +289,57 @@ function TaskFeedback({ task }: { task: ProductiveReport }) {
             </Text>
           </View>
         )}
-        {!task.technical && task.status !== 'done' && (
+        {task.status === 'skipped' && (
+          <View style={styles.notice}>
+            <Text style={styles.noticeText}>This task was skipped and counted as 0 points.</Text>
+          </View>
+        )}
+        {!task.technical && task.status !== 'done' && task.status !== 'skipped' && (
           <Text style={typography.muted}>{task.status === 'pending' ? 'Being scored…' : 'This task wasn’t scored.'}</Text>
         )}
 
-        {!!task.audioUrl && <RecordingPlayer uri={task.audioUrl} />}
+        {!!task.audioUrl &&
+          (isWebm(task.audioUrl) && Platform.OS === 'ios' ? (
+            <WebmNotice />
+          ) : (
+            <RecordingPlayer uri={task.audioUrl} durationSec={task.durationSec} />
+          ))}
         {!!answer && (
-          <View style={styles.answer}>
-            <Text style={styles.answerText}>{answer}</Text>
+          <View style={styles.list}>
+            {task.skill === 'speaking' && (
+              <View style={styles.transcriptHead}>
+                <Kicker>Transcript</Kicker>
+                {task.transcriptConfirmed && <Text style={styles.checked}>✓ Checked by you</Text>}
+              </View>
+            )}
+            <View style={styles.answer}>
+              <Text style={styles.answerText}>{answer}</Text>
+            </View>
           </View>
         )}
 
         {criteria.length > 0 && (
           <View style={styles.list}>
+            {/* Ses ölçümleri de varsa iki grup başlıkla ayrılır */}
+            {voice.length > 0 && <Kicker>Content</Kicker>}
             {criteria.map(([key, value]) => (
               <View key={key} style={styles.criterion}>
                 <Text style={styles.criterionName}>{criterionName(key)}</Text>
+                <View style={styles.criterionTrack}>
+                  <View style={[styles.fill, { width: `${Math.max(0, Math.min(100, value))}%` }]} />
+                </View>
+                <Text style={styles.criterionValue}>{value}</Text>
+              </View>
+            ))}
+          </View>
+        )}
+
+        {voice.length > 0 && (
+          <View style={styles.list}>
+            <Kicker>Voice</Kicker>
+            {voice.map(([label, value]) => (
+              <View key={label} style={styles.criterion}>
+                <Text style={styles.criterionName}>{label}</Text>
                 <View style={styles.criterionTrack}>
                   <View style={[styles.fill, { width: `${Math.max(0, Math.min(100, value))}%` }]} />
                 </View>
@@ -265,6 +353,12 @@ function TaskFeedback({ task }: { task: ProductiveReport }) {
 
         {strengths.length > 0 && <FeedbackList title="Strengths" items={strengths} bullet="+" />}
         {nextSteps.length > 0 && <FeedbackList title="Next steps" items={nextSteps} bullet="→" />}
+
+        {task.needsReview && (
+          <View style={styles.notice}>
+            <Text style={styles.noticeText}>Your teacher will also check this answer.</Text>
+          </View>
+        )}
 
         {!!task.teacherFeedback && (
           <View style={styles.answer}>
@@ -291,10 +385,26 @@ function FeedbackList({ title, items, bullet }: { title: string; items: string[]
   );
 }
 
+// Web'de (tarayıcıda) alınan kayıtlar WebM; iOS'un yerel oynatıcısı (AVPlayer) WebM çalamaz
+const isWebm = (uri: string) => /\.webm(\?|$)/i.test(uri);
+
+// iOS'ta WebM kayıt çalınamıyor: tarayıcının MediaRecorder WebM'inde süre bilgisi yok, AVPlayer WebM açmıyor;
+// WebView ile denendi, ses çıkmadı (2026-10-22). Sunucu m4a sağlayana kadar not gösterilir
+// (bkz. .claude/notes/api-entegrasyon-plani.md, "Backend'e iletilecekler").
+function WebmNotice() {
+  return (
+    <View style={styles.list}>
+      <Kicker>Recording</Kicker>
+      <Text style={typography.muted}>This recording was made on the web and can’t be played in the app yet.</Text>
+    </View>
+  );
+}
+
 // Speaking kaydı. Adres kısa süreli: rapor yenilenince yenisi gelir.
-function RecordingPlayer({ uri }: { uri: string }) {
+function RecordingPlayer({ uri, durationSec }: { uri: string; durationSec: number | null }) {
   const player = useAudioPlayer({ uri });
   const status = useAudioPlayerStatus(player);
+  const total = status.duration || durationSec || 0;
 
   const toggle = () => {
     if (status.playing) {
@@ -305,14 +415,31 @@ function RecordingPlayer({ uri }: { uri: string }) {
     player.play();
   };
 
+  return <PlayerControls playing={status.playing} current={status.currentTime} total={total} onToggle={toggle} />;
+}
+
+// Kayıt oynatıcısının görünümü
+function PlayerControls({ playing, current, total, onToggle }: { playing: boolean; current: number; total: number; onToggle: () => void }) {
+  const pct = total > 0 ? Math.min(100, (current / total) * 100) : 0;
   return (
-    <Button
-      label={status.playing ? 'Pause' : 'Listen to your recording'}
-      variant="secondary"
-      size="compact"
-      trailing={<PlayIcon color={colors.text} />}
-      onPress={toggle}
-    />
+    <View style={styles.list}>
+      <View style={styles.transcriptHead}>
+        <Kicker>Recording</Kicker>
+        {total > 0 && <Text style={typography.muted}>{`${formatClock(current)} / ${formatClock(total)}`}</Text>}
+      </View>
+      <View style={styles.player}>
+        <Button
+          label={playing ? 'Pause' : 'Play'}
+          variant="secondary"
+          size="compact"
+          trailing={<PlayIcon color={colors.text} />}
+          onPress={onToggle}
+        />
+        <View style={styles.criterionTrack}>
+          <View style={[styles.fill, { width: `${pct}%` }]} />
+        </View>
+      </View>
+    </View>
   );
 }
 
@@ -320,13 +447,56 @@ const styles = StyleSheet.create({
   wrap: {
     gap: 32,
   },
+  // Üst kısım: başlık, özet kartı, notlar ve bilgiler arası eşit boşluk
   top: {
-    gap: 8,
+    gap: 16,
   },
-  overall: {
-    fontFamily: fonts.semiBold,
-    fontSize: 15,
+  heading: {
+    gap: 4,
+  },
+  title: {
+    fontFamily: fonts.extraBold,
+    fontSize: 24,
+    lineHeight: 29,
     color: colors.text,
+  },
+  summaryCard: {
+    flexDirection: 'row',
+    backgroundColor: colors.surface,
+    padding: 16,
+  },
+  summaryCardTablet: {
+    maxWidth: 560,
+  },
+  summaryLevel: {
+    flex: 1,
+    gap: 4,
+  },
+  levelNone: {
+    fontSize: 56,
+    lineHeight: 60,
+    color: colors.neutral500,
+  },
+  summaryStats: {
+    flex: 1,
+    gap: 16,
+    paddingLeft: 16,
+    borderLeftWidth: 2,
+    borderLeftColor: colors.divider,
+  },
+  summaryStat: {
+    gap: 4,
+  },
+  summaryValue: {
+    fontFamily: fonts.extraBold,
+    fontSize: 26,
+    lineHeight: 30,
+    color: colors.text,
+  },
+  summaryUnit: {
+    fontFamily: fonts.regular,
+    fontSize: 15,
+    color: colors.neutral700,
   },
   // CEFR seviyeleri bu sayfada turuncu (kullanıcı kararı)
   level: {
@@ -339,12 +509,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.neutral700,
   },
-  noLevel: {
-    fontFamily: fonts.extraBold,
-    fontSize: 32,
-    lineHeight: 36,
-    color: colors.text,
-  },
   summary: {
     fontFamily: fonts.regular,
     fontSize: 15,
@@ -354,16 +518,12 @@ const styles = StyleSheet.create({
   facts: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    rowGap: 14,
-    marginTop: 12,
-    paddingTop: 14,
-    borderTopWidth: 2,
-    borderTopColor: colors.divider,
+    rowGap: 16,
   },
   fact: {
     flexGrow: 0,
     paddingRight: 12,
-    gap: 2,
+    gap: 4,
   },
   factValue: {
     fontFamily: fonts.semiBold,
@@ -444,8 +604,33 @@ const styles = StyleSheet.create({
     maxWidth: 420,
     aspectRatio: 1,
   },
+  // Bilgi notu (capped): webdeki mavi kutu
+  info: {
+    padding: 12,
+    backgroundColor: colors.accent100,
+  },
+  infoText: {
+    fontFamily: fonts.semiBold,
+    fontSize: 14,
+    lineHeight: 21,
+    color: colors.accent800,
+  },
+  transcriptHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  checked: {
+    fontFamily: fonts.semiBold,
+    fontSize: 13,
+    color: levelColors('B1').fg,
+  },
+  player: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
   notice: {
-    marginTop: 4,
     padding: 12,
     backgroundColor: colors.warn100,
   },
