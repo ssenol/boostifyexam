@@ -12,15 +12,16 @@ import authService from '../services/auth';
 import { useAppDispatch } from '../store/hooks';
 import { setCredentials } from '../store/slices/authSlice';
 import { theme } from '../theme';
+import { ApiError, getErrorMessage } from '../utils/errors';
 
 const { colors, fonts } = theme;
 
 const LEVELS = ['A1', 'A1+', 'A2', 'A2+', 'B1', 'B1+', 'B2', 'B2+', 'C1', 'C2'];
-// Her test ortadan (B1) başlar
+// Placement ortadan (B1) başlar; progress öğrencinin son seviyesinden
 const START_LEVEL_INDEX = 4;
 
 const FACTS: [string, string][] = [
-  ['15–35', 'Questions'],
+  ['≤ 40', 'Questions'],
   ['4', 'Skills + grammar'],
   ['10', 'CEFR levels'],
 ];
@@ -39,25 +40,21 @@ export default function LoginScreen() {
 
   const handleLogin = async () => {
     if (!username.trim() || !password) {
-      Alert.alert('Error', 'Please enter your student ID and password.');
+      Alert.alert('Sign in failed', getErrorMessage(new ApiError('credentials_required', 400, '')));
       return;
     }
 
     try {
       setLoading(true);
-      const response = await authService.login(username.trim(), password);
-      if (!response.token || !response.user) {
-        throw new Error('Invalid login response - missing token or user data');
-      }
+      const session = await authService.login(username.trim(), password);
       // Yönlendirme yok: isAuthenticated değişince (auth)/login.tsx Redirect ile ana ekrana geçer
       dispatch(setCredentials({
-        token: response.token,
-        user: response.user,
-        refreshToken: response.refreshToken,
-        tokenAcquiredAt: Date.now(),
+        accessToken: session.accessToken,
+        refreshToken: session.refreshToken,
+        user: session.user,
       }));
-    } catch {
-      Alert.alert('Sign in failed', 'Check your student ID and password and try again.');
+    } catch (e) {
+      Alert.alert('Sign in failed', getErrorMessage(e));
     } finally {
       setLoading(false);
     }
@@ -82,7 +79,7 @@ export default function LoginScreen() {
         <View style={styles.ladderWrap}>
           <View style={styles.ladderHeader}>
             <Text style={styles.ladderKicker}>{toUpperCaseEn('CEFR scale')}</Text>
-            <Text style={styles.ladderNote}>Every test starts in the middle</Text>
+            <Text style={styles.ladderNote}>Placement starts in the middle</Text>
           </View>
           <View style={styles.ladderBars}>
             {LEVELS.map((name, i) => (
@@ -127,7 +124,7 @@ export default function LoginScreen() {
       </View>
 
       <TextField
-        label="Student ID or school email"
+        label="Username"
         value={username}
         onChangeText={setUsername}
         autoCapitalize="none"

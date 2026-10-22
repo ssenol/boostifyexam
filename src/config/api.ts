@@ -1,117 +1,127 @@
-import axios, { AxiosError, InternalAxiosRequestConfig } from "axios";
+import axios, { AxiosError, AxiosRequestConfig } from "axios";
 import { store } from "../store/index";
 import { logout, setCredentials } from "../store/slices/authSlice";
-import type { ApiResponse, AuthUser } from "../types/api";
+import type { ApiSuccess, AuthSession } from "../types/api";
+import { ApiError, toApiError } from "../utils/errors";
 
-// Uygulamaya özel axios config alanları
+// Uygulamaya özel axios config alanı
 declare module "axios" {
   interface AxiosRequestConfig {
-    // true ise request interceptor Authorization header'ına dokunmaz (ör. sınava özel geçici token)
-    skipAuthInterceptor?: boolean;
     // 401 sonrası tek seferlik retry işareti
     _retry?: boolean;
   }
 }
 
-interface RefreshResponseData {
-  accessToken: string;
-  user?: AuthUser;
-}
-
-const BASE_URL = "https://quizmaker-api.onrender.com/api/v0.0.1";
-
-const api = axios.create({
-  timeout: 20000,
-});
+// Adres ortam ayarıdır: EXPO_PUBLIC_API_BASE_URL verilirse (ör. test sunucusu) o kullanılır
+export const BASE_URL =
+  process.env.EXPO_PUBLIC_API_BASE_URL ?? "https://quizmaker-api.onrender.com/api/v0.0.1/mobile/exam";
 
 export const API_ENDPOINTS = {
   auth: {
-    login: `${BASE_URL}/auth/login`,
-    refresh: `${BASE_URL}/auth/refresh-mobile-app-access-token`,
+    login: "/auth/login",
+    refresh: "/auth/refresh",
+    logout: "/auth/logout",
   },
-  // TODO: Sınav endpoint'leri (atanan sınavlar, sınav oturumu, cevap kaydı, raporlar) backend ile netleşince eklenecek
+  me: "/me",
 } as const;
 
-// Refresh token ile yeni access token alır ve store'u günceller
-const refreshAccessToken = async (refreshToken: string): Promise<string> => {
-  const response = await axios.post<ApiResponse<RefreshResponseData>>(
-    API_ENDPOINTS.auth.refresh,
-    { refreshToken }
-  );
-  const { accessToken: newAccessToken, user: newUser } = response.data.data!;
+const TIMEOUT_MS = 20000;
 
-  store.dispatch(setCredentials({
-    token: newAccessToken,
-    user: { ...store.getState().auth.currentUser, ...newUser },
-    refreshToken: refreshToken,
-    tokenAcquiredAt: Date.now(),
-  }));
+const api = axios.create({
+  baseURL: BASE_URL,
+  timeout: TIMEOUT_MS,
+});
 
-  return newAccessToken;
-};
+// /auth/* istekleri token taşımaz ve 401 aldığında yenileme/çıkış tetiklemez (ör. yanlış şifre)
+const isAuthPath = (url?: string) => !!url?.startsWith("/auth/");
 
-// Request interceptor
-api.interceptors.request.use(
-  async (config: InternalAxiosRequestConfig) => {
-    const { accessToken, tokenAcquiredAt, refreshToken } = store.getState().auth;
+// Devam eden yenileme. Aynı anda 401 alan istekler tek yenilemeyi bekler.
+let refreshInFlight: Promise<string> | null = null;
 
-    if (config.url?.includes('/auth/login') || config.url?.includes('/auth/refresh')) {
-      return config;
+function refreshAccessToken(): Promise<string> {
+  if (!refreshInFlight) {
+    refreshInFlight = requestNewTokens().finally(() => {
+      refreshInFlight = null;
+    });
+  }
+  return refreshInFlight;
+}
+
+async function requestNewTokens(): Promise<string> {
+  const refreshToken = store.getState().auth.refreshToken;
+  if (!refreshToken) {
+    throw new ApiError("refresh_missing", 401, "No refresh token");
+  }
+  try {
+    // Interceptor'lardan geçmesin diye ayrı axios çağrısı
+    const response = await axios.post<ApiSuccess<AuthSession>>(
+      `${BASE_URL}${API_ENDPOINTS.auth.refresh}`,
+      { refreshToken },
+      { timeout: TIMEOUT_MS }
+    );
+    // Yenileme sürerken çıkış yapıldıysa oturumu geri açma
+    if (store.getState().auth.refreshToken !== refreshToken) {
+      throw new ApiError("refresh_revoked", 401, "Signed out during refresh");
     }
+    const { accessToken, refreshToken: newRefreshToken, user } = response.data.data;
+    store.dispatch(setCredentials({ accessToken, refreshToken: newRefreshToken, user }));
+    return accessToken;
+  } catch (error) {
+    throw toApiError(error);
+  }
+}
 
-    if (config.skipAuthInterceptor) {
-      return config;
-    }
+api.interceptors.request.use((config) => {
+  const { accessToken } = store.getState().auth;
+  if (accessToken && !isAuthPath(config.url)) {
+    config.headers.Authorization = `Bearer ${accessToken}`;
+  }
+  return config;
+});
 
-    const now = Date.now();
-    const twentyFourHours = 24 * 60 * 60 * 1000;
-
-    if (accessToken && tokenAcquiredAt && now - tokenAcquiredAt > twentyFourHours) {
-      if (refreshToken) {
-        try {
-          const newAccessToken = await refreshAccessToken(refreshToken);
-          config.headers.Authorization = `Bearer ${newAccessToken}`;
-          return config;
-        } catch (e) {
-          store.dispatch(logout());
-          return Promise.reject(e);
-        }
-      }
-      store.dispatch(logout());
-      return Promise.reject(new Error("No refresh token"));
-    }
-
-    if (accessToken) {
-      config.headers.Authorization = `Bearer ${accessToken}`;
-    }
-    return config;
-  },
-  (error) => Promise.reject(error)
-);
-
-// Response interceptor
+// Bütün hatalar ApiError olarak döner; ekranlar error.code ile karar verir
 api.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
-    const originalRequest = error.config;
-    if (originalRequest && error.response?.status === 401 && !originalRequest._retry) {
-      originalRequest._retry = true;
-      const { refreshToken } = store.getState().auth;
+    const apiError = toApiError(error);
+    const original = error.config;
 
-      if (refreshToken) {
-        try {
-          const newAccessToken = await refreshAccessToken(refreshToken);
-          originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
-          return api(originalRequest);
-        } catch (refreshError) {
-          store.dispatch(logout());
-          return Promise.reject(refreshError);
-        }
-      }
-      store.dispatch(logout());
+    if (apiError.status !== 401 || !original || isAuthPath(original.url)) {
+      throw apiError;
     }
-    return Promise.reject(error);
+
+    // Erişim anahtarının süresi dolduysa ya da bozuksa sessizce yenile ve isteği bir kez tekrarla
+    if ((apiError.code === "token_expired" || apiError.code === "token_invalid") && !original._retry) {
+      original._retry = true;
+      let accessToken: string;
+      try {
+        accessToken = await refreshAccessToken();
+      } catch (refreshError) {
+        const refreshApiError = toApiError(refreshError);
+        // Yenileme anahtarı geçersizse (refresh_*, account_disabled) çıkış. Ağ ya da sunucu hatasında oturum
+        // korunur: eski anahtar sunucuda 60 sn daha kabul edildiği için sonraki istek yeniden dener.
+        if (refreshApiError.status === 401) store.dispatch(logout());
+        throw refreshApiError;
+      }
+      original.headers.Authorization = `Bearer ${accessToken}`;
+      return api(original);
+    }
+
+    // token_missing, account_disabled ya da yenilemeden sonra yine 401
+    store.dispatch(logout());
+    throw apiError;
   }
 );
+
+// Yanıtın data alanını döner. Boş gövde gereken POST isteklerinde {} gönderilir.
+export async function apiGet<T>(url: string, config?: AxiosRequestConfig): Promise<T> {
+  const response = await api.get<ApiSuccess<T>>(url, config);
+  return response.data.data;
+}
+
+export async function apiPost<T>(url: string, body: unknown = {}, config?: AxiosRequestConfig): Promise<T> {
+  const response = await api.post<ApiSuccess<T>>(url, body, config);
+  return response.data.data;
+}
 
 export default api;

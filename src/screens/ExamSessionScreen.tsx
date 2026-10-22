@@ -213,7 +213,7 @@ export default function ExamSessionScreen({ examId }: ExamSessionScreenProps) {
 
   const hint = hintFor(item, { selectedKey, words, recordState: recorder.state });
   const nextLabel = item.kind === 'choice' ? 'Next' : item.kind === 'writing' ? 'Submit text' : 'Submit recording';
-  const watermarkText = [user?.username, [user?.name, user?.surname ?? user?.lastName].filter(Boolean).join(' ')]
+  const watermarkText = [user?.username, [user?.name, user?.lastName].filter(Boolean).join(' ')]
     .filter(Boolean)
     .join(' · ');
 

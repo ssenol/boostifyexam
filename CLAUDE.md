@@ -64,6 +64,7 @@ app/
 └── (main)/
     ├── _layout.tsx      # Auth koruması: giriş yoksa "/login"'e Redirect. Tab bar YOK, Stack.
     ├── index.tsx        # Assignments (Open / Completed)
+    ├── profile.tsx      # Profil (GET /me) + çıkış
     ├── exam/[id]/
     │   ├── index.tsx    # Intro: kurallar + cihaz kontrolü
     │   ├── session.tsx  # Sınav (gestureEnabled: false). Intro'dan replace ile açılır
@@ -80,8 +81,8 @@ sonra `app/` altında route dosyası. `@/*` path alias'ı kök dizini gösterir.
 `accessToken`/`refreshToken` SecureStore'da, kalan alanlar AsyncStorage'da. Yeni slice eklerken `persistConfig` +
 `whitelist` açıkça yazılır. Hooks: `useAppSelector` / `useAppDispatch` (`src/store/hooks.ts`).
 
-Çıkış her zaman `src/utils/logoutHelper.ts` → `performLogout` üzerinden yapılır. Kullanıcıya ait yeni cache'ler de
-orada temizlenmeli.
+Çıkış her zaman `src/utils/logoutHelper.ts` → `performLogout` üzerinden yapılır: sunucuya `POST /auth/logout`
+gönderilir (beklenmez) ve tokenlar her durumda silinir. Kullanıcıya ait yeni cache'ler de orada temizlenmeli.
 
 ### Sınav akışı
 
@@ -94,9 +95,18 @@ orada temizlenmeli.
 
 ### API katmanı
 
-`src/config/api.ts`: tek axios instance + `API_ENDPOINTS`. Access token 24 saatten eskiyse istekten önce yenilenir.
-401 alan istek bir kez refresh ile tekrar denenir, olmazsa `logout()`. Component'ler doğrudan axios çağırmaz;
-çağrılar `src/services/` altındaki servis dosyalarından yapılır.
+Kaynak: `_calismalar/BoostifyExam Mobil Uygulama Geliştirici Rehberi.docx` (plan: `.claude/notes/api-entegrasyon-plani.md`).
+
+- `src/config/api.ts`: tek axios instance (`baseURL` = `…/mobile/exam`, `EXPO_PUBLIC_API_BASE_URL` ile değişir) +
+  `API_ENDPOINTS` (yollar göreli). `apiGet` / `apiPost` yanıtın `data` alanını döner; boş gövdeli POST `{}` gönderir.
+- Bütün hatalar `ApiError`'a (`src/utils/errors.ts`) çevrilir: `code` (sunucunun `error.code`'u, ağda
+  `network_error`), `status`, `details`. Karar her zaman `code` ile verilir; sunucunun `message`'ı gösterilmez.
+  Öğrenciye gösterilecek İngilizce metin `getErrorMessage()` sözlüğünden gelir.
+- Token: access 2 saat, refresh 60 gün. `401 token_expired | token_invalid` → tek bir `/auth/refresh` (aynı anda
+  gelen 401'ler aynı yenilemeyi bekler), iki token birden değişir, istek bir kez tekrarlanır. Yenileme 401 alırsa
+  çıkış; ağ/sunucu hatasında oturum korunur. `/auth/*` istekleri token taşımaz ve 401'de çıkış tetiklemez.
+- Açılışta `(main)/_layout.tsx` `GET /me` ile profili günceller.
+- Component'ler doğrudan axios çağırmaz; çağrılar `src/services/` altındaki servis dosyalarından yapılır.
 
 ### Tema
 

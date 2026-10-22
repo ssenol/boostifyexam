@@ -83,6 +83,12 @@ Sınav **başlatılmaz**: her deneme gerçek ve geri alınamaz.
 - Açılışta `GET /me`. Profil + çıkış ekranı (rehberdeki 9 ekrandan biri).
 - Simülatör testi: doğru/yanlış şifre, öğretmen hesabı mesajı, uygulama kapatılıp açılınca şifre sorulmaması.
 
+> **Aşama 1 tamamlandı (2026-10-22).** Simülatörde boş form, yanlış şifre, öğretmen hesabı, giriş, profil,
+> uygulama yeniden açılınca oturumun korunması ve çıkış denendi. Geçici geliştirme düğmeleriyle: bozuk access token +
+> aynı anda 3 `/me` → tek refresh, üçü de başarılı; iki token da bozuk → `refresh_invalid`, çıkış.
+> Login ekranındaki iki bilgi PDF'e göre düzeltildi ("≤ 40 questions", "Placement starts in the middle").
+> SSO düğmesi yerinde duruyor (API'de karşılığı yok, "not available yet" diyor).
+
 **Aşama 2: Sınav listesi ve sonuçlar listesi.**
 - `GET /exams` → kartlar. Düğmeyi `action` belirler: start / resume / view_result / wait / closed / missed.
   `mustTakePlacement` ise placement kartı en üstte ve vurgulu gösterilir. Seviye kartı (`level`).

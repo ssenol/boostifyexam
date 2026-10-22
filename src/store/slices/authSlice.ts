@@ -4,49 +4,49 @@ import type { RootState } from "../index";
 
 export interface AuthState {
   accessToken: string | null;
-  currentUser: AuthUser | null;
   refreshToken: string | null;
+  currentUser: AuthUser | null;
   isAuthenticated: boolean;
-  tokenAcquiredAt: number | null; // Token alınma zamanı (timestamp)
 }
 
 export interface CredentialsPayload {
-  token: string;
-  user?: AuthUser | null;
-  refreshToken?: string | null;
-  tokenAcquiredAt?: number;
+  accessToken: string;
+  refreshToken: string;
+  user: AuthUser;
 }
 
 const initialState: AuthState = {
   accessToken: null,
-  currentUser: null,
   refreshToken: null,
+  currentUser: null,
   isAuthenticated: false,
-  tokenAcquiredAt: null, // Token alınma zamanı (timestamp)
 };
 
 const authSlice = createSlice({
   name: "auth",
   initialState,
   reducers: {
+    // Giriş ve her yenilemede iki token birden değişir; eski refresh token artık kullanılmaz
     setCredentials: (state, action: PayloadAction<CredentialsPayload>) => {
-      state.accessToken = action.payload.token;
-      state.currentUser = action.payload.user ?? null;
-      state.refreshToken = action.payload.refreshToken ?? null;
-      state.isAuthenticated = !!action.payload.token;
-      state.tokenAcquiredAt = action.payload.tokenAcquiredAt || Date.now();
+      state.accessToken = action.payload.accessToken;
+      state.refreshToken = action.payload.refreshToken;
+      state.currentUser = action.payload.user;
+      state.isAuthenticated = true;
+    },
+    // GET /me ile güncellenen profil
+    setUser: (state, action: PayloadAction<AuthUser>) => {
+      state.currentUser = action.payload;
     },
     logout: (state) => {
       state.accessToken = null;
-      state.currentUser = null;
       state.refreshToken = null;
+      state.currentUser = null;
       state.isAuthenticated = false;
-      state.tokenAcquiredAt = null;
     },
   },
 });
 
-export const { setCredentials, logout } = authSlice.actions;
+export const { setCredentials, setUser, logout } = authSlice.actions;
 
 // Selectors
 export const selectCurrentUser = (state: RootState) => state.auth.currentUser;

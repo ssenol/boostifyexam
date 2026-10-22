@@ -9,10 +9,8 @@ import useAsyncData from '../hooks/useAsyncData';
 import useBottomSpacing from '../hooks/useBottomSpacing';
 import useResponsive from '../hooks/useResponsive';
 import examService from '../services/exam';
-import { useAppDispatch } from '../store/hooks';
 import { theme } from '../theme';
 import type { CompletedExam, OpenExam, ProgressSeries, SeriesState } from '../types/exam';
-import { performLogout } from '../utils/logoutHelper';
 import Kicker, { toUpperCaseEn } from '../components/Kicker';
 
 const { colors, fonts, typography } = theme;
@@ -20,7 +18,6 @@ const { colors, fonts, typography } = theme;
 type Tab = 'open' | 'done';
 
 export default function AssignmentsScreen() {
-  const dispatch = useAppDispatch();
   const bottom = useBottomSpacing();
   const { isTablet } = useResponsive();
   const styles = useMemo(() => createStyles(isTablet), [isTablet]);
@@ -41,7 +38,7 @@ export default function AssignmentsScreen() {
   const header = (
     <ScreenHeader
       title="Boostify"
-      right={<Button label="Sign out" variant="ghost" size="compact" onPress={() => performLogout({ dispatch })} />}
+      right={<Button label="Profile" variant="ghost" size="compact" onPress={() => router.push('/profile')} />}
     />
   );
 

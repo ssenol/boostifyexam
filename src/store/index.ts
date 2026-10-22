@@ -7,7 +7,7 @@ import secureAuthStorage from './secureAuthStorage';
 const authPersistConfig: PersistConfig<AuthState> = {
   key: 'auth',
   storage: secureAuthStorage,
-  whitelist: ['accessToken', 'currentUser', 'refreshToken', 'isAuthenticated', 'tokenAcquiredAt']
+  whitelist: ['accessToken', 'currentUser', 'refreshToken', 'isAuthenticated']
 };
 
 const rootReducer = {

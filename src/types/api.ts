@@ -1,34 +1,51 @@
-// Backend (quizmaker-api) ile paylaşılan ortak tipler.
-// Endpoint'lerin tamamının şeması henüz tiplenmedi; bilinmeyen alanlar esnek bırakıldı.
+// Mobil sınav API'sinin (…/mobile/exam) ortak tipleri.
+// Kaynak: _calismalar/BoostifyExam Mobil Uygulama Geliştirici Rehberi.docx
 
-// Backend'in çoğu endpoint'te döndüğü sarmalayıcı yanıt
-export interface ApiResponse<T = unknown> {
-  status?: string;
-  success?: boolean;
-  status_code?: number;
-  message?: string;
-  data?: T;
-  [key: string]: unknown;
+// Başarılı yanıt: ekranın ihtiyacı olan her şey data içindedir
+export interface ApiSuccess<T> {
+  success: true;
+  status_code: number;
+  data: T;
 }
 
-// Oturum açan kullanıcı; alanlar kurumsal sistemden geldiği için tamamı opsiyonel
+// Hatalı yanıt: uygulama ne yapacağına error.code ile karar verir; message öğrenciye gösterilmez
+export interface ApiErrorBody {
+  success: false;
+  status_code: number;
+  error: {
+    code: string;
+    message: string;
+    details?: Record<string, unknown>;
+  };
+}
+
+// Öğrencinin ölçülmüş seviyesi; hiç sınava girmediyse null
+export interface EnglishLevel {
+  cefrLevel: string;
+  measuredAt: string;
+}
+
 export interface AuthUser {
-  id?: string;
-  _id?: string;
-  userId?: string;
-  username?: string;
-  role?: string;
-  name?: string;
-  surname?: string;
-  lastName?: string;
-  avatarUrl?: string;
-  classInfo?: string[];
-  class_name?: string;
-  schoolName?: string;
-  school_name?: string;
-  campusName?: string;
-  campus_name?: string;
-  createdAt?: string;
-  created_at?: string;
-  [key: string]: unknown;
+  userId: string;
+  username: string;
+  name: string;
+  lastName: string;
+  role: string;
+  schoolId: string;
+  schoolName: string;
+  campusId: string;
+  campusName: string;
+  className: string;
+  avatarUrl: string;
+  englishLevel: EnglishLevel | null;
+}
+
+// POST /auth/login ve POST /auth/refresh aynı yanıtı döner
+export interface AuthSession {
+  accessToken: string;
+  refreshToken: string;
+  tokenType: string;
+  accessTokenExpiresAt: string;
+  refreshTokenExpiresAt: string;
+  user: AuthUser;
 }
