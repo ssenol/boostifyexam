@@ -12,17 +12,12 @@ import useBottomSpacing from '../hooks/useBottomSpacing';
 import useResponsive from '../hooks/useResponsive';
 import examService from '../services/exam';
 import { theme } from '../theme';
-import type { AssignedExam, ExamKind, ResultSummary } from '../types/exam';
+import { EXAM_TYPE_LABEL, type AssignedExam, type ResultSummary } from '../types/exam';
 import { formatDate, formatDateTime } from '../utils/format';
 
 const { colors, fonts, typography } = theme;
 
 type Tab = 'tests' | 'results';
-
-const TYPE_LABEL: Record<ExamKind, string> = {
-  placement: 'Placement test',
-  progress: 'Progress test',
-};
 
 // Başlanabilir ya da devam edilebilir sınav
 const isActionable = (exam: AssignedExam) => exam.action === 'start' || exam.action === 'resume';
@@ -38,15 +33,15 @@ export default function AssignmentsScreen() {
     const [list, results] = await Promise.all([examService.getExams(), examService.getResults()]);
     return { list, results };
   }, []);
-  const { data, loading, refreshing, error, reload } = useAsyncData(load);
+  const { data, loading, refreshing, error, reload, reloadQuietly } = useAsyncData(load);
 
   // Sınavdan dönünce (bitti / duraklatıldı) liste güncellensin; ilk odaklanmada useAsyncData zaten yüklüyor
   const focusedOnce = useRef(false);
   useFocusEffect(
     useCallback(() => {
-      if (focusedOnce.current) reload();
+      if (focusedOnce.current) reloadQuietly();
       focusedOnce.current = true;
-    }, [reload]),
+    }, [reloadQuietly]),
   );
 
   // Açık bir placement varsa önce o çözülmeli: en üstte ve vurgulu
@@ -211,7 +206,7 @@ function ExamCard({ exam, highlighted }: { exam: AssignedExam; highlighted: bool
       <CoverImage uri={exam.coverImage} label="Card image" />
       <View style={cardStyles.examBody}>
         <View style={cardStyles.tags}>
-          <Tag label={TYPE_LABEL[exam.examType]} />
+          <Tag label={EXAM_TYPE_LABEL[exam.examType]} />
           {exam.action === 'start' && <Tag label="Single attempt" tone="neutral" />}
           {exam.action === 'resume' && <Tag label={exam.paused ? 'Paused' : 'In progress'} tone="neutral" />}
         </View>
@@ -236,7 +231,7 @@ function ResultCard({ result, isTablet }: { result: ResultSummary; isTablet: boo
       <View style={cardStyles.resultTop}>
         <CoverImage uri={result.coverImage} label="Image" aspectRatio={1} style={cardStyles.thumb} />
         <View style={cardStyles.resultInfo}>
-          <Tag label={TYPE_LABEL[result.examType]} />
+          <Tag label={EXAM_TYPE_LABEL[result.examType]} />
           <Text style={cardStyles.resultTitle}>{result.title}</Text>
           <Text style={typography.muted}>{`Finished ${formatDate(result.finishedAt)}`}</Text>
         </View>

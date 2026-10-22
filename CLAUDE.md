@@ -64,9 +64,9 @@ app/
 └── (main)/
     ├── _layout.tsx      # Auth koruması: giriş yoksa "/login"'e Redirect. Tab bar YOK, Stack.
     ├── index.tsx        # Assignments: Tests (GET /exams, düğmeyi action belirler) / Results (GET /results)
-    ├── profile.tsx      # Profil (GET /me) + çıkış
+    ├── profile.tsx      # Profil (GET /me), Security (biyometrik, mikrofon), çıkış
     ├── exam/[id]/
-    │   ├── index.tsx    # Intro: kurallar + cihaz kontrolü
+    │   ├── index.tsx    # Intro (GET /exams/:id): yönerge, kurallar, ses testi + mikrofon izni
     │   ├── session.tsx  # Sınav (gestureEnabled: false). Intro'dan replace ile açılır
     │   └── result.tsx   # Sonuç. Session'dan replace ile açılır
     └── report/[id].tsx  # Rapor (?from=assign|result)
@@ -114,10 +114,21 @@ Kaynak: `_calismalar/BoostifyExam Mobil Uygulama Geliştirici Rehberi.docx` (pla
 tasarımda bilerek 0. Font: Archivo 400/600/800 (`fonts.regular/semiBold/extraBold`). Tekrarlanan metin stilleri `typography`
 (`kicker`, `kickerAccent`, `body`, `muted`). Ortak bileşenler (`src/components/`):
 - `Button`: `primary` / `secondary` / `ghost` varyantları; `large` / `medium` / `compact` boyutları; `trailing` true ise ok ikonu.
-- `Tag`, `ScreenHeader`, `Dialog`, `Toast` + `useToast`, `StateView` (yükleniyor / hata), `ImagePlaceholder`.
+- `Tag`, `ScreenHeader`, `Dialog` (ek içerik için `children`; klavye açılınca yukarı kayar), `Toast` + `useToast`,
+  `StateView` (yükleniyor / hata), `ImagePlaceholder`, `CoverImage` (URL boşsa ya da yüklenemezse yer tutucu),
+  `HtmlBlock` (sunucudan gelen HTML, WebView, içeriğe göre yükseklik, linkler tarayıcıda).
 - `icons.tsx`: prototipteki Lucide path'leri.
 
-Veri yükleme: `useAsyncData(load)`; `load` `useCallback` ile verilmeli.
+Veri yükleme: `useAsyncData(load)`; `load` `useCallback` ile verilmeli. Ekrana geri dönünce yenileme için `reload` değil
+`reloadQuietly` kullanın: iOS'ta `RefreshControl`'ü programla açıp kapatmak ekran geçişinde boşluk / donmuş simge bırakıyor.
+
+### Biyometrik giriş ve izinler
+
+- `src/services/biometricAuth.ts` (Speak'teki kalıp): uygulama kilidi değil, çıkıştan sonra şifresiz giriş. Son
+  başarılı girişin bilgileri yalnızca SecureStore'da; biyometrik kapalıyken çıkışta silinir. Teklif girişten sonra
+  bir kez; Profil > Security'den aç/kapa (telefonda şifre yoksa bir kez sorar). Etiket cihazdan okunur
+  (Face ID / Touch ID / Fingerprint). `invalid_credentials` → biyometrik kapanır.
+- Mikrofon izni: `useMicPermission()` (Intro + Profil). Reddedilse de sınav başlar; speaking'de "teknik sorun" yolu var.
 
 ### Responsive
 

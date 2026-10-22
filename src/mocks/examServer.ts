@@ -11,7 +11,6 @@ import {
   type AudioClip,
   type CefrLevel,
   type ChoiceItem,
-  type ExamDetail,
   type ExamReport,
   type ExamResult,
   type Passage,
@@ -207,40 +206,6 @@ const snapshot = (s: Session): SessionSnapshot => {
 
 // --- Uç noktalar ---------------------------------------------------------------------------------
 
-export async function getExamDetail(examId: string): Promise<ExamDetail> {
-  await delay();
-  const def = examDef(examId);
-  const active = activeSessionFor(examId);
-  const isPlacement = def.kind === 'placement';
-  const seriesIndex = SERIES.findIndex((e) => e.id === examId);
-  const lastLevel = seriesIndex > 0 ? levelOf(SERIES[seriesIndex - 1].id) : null;
-
-  return {
-    id: def.id,
-    kind: def.kind,
-    typeLabel: def.typeLabel,
-    kicker: isPlacement ? 'Placement test · Level check' : `Progress test · ${seriesIndex + 1} of ${SERIES.length}`,
-    title: def.title,
-    description: isPlacement
-      ? 'Questions adapt to your answers. The test ends on its own once your level is clear, so the total number of questions is not shown.'
-      : `Questions start near your last level${lastLevel ? ` (${lastLevel})` : ''} and adapt to your answers. You won’t see a question twice.`,
-    teacherNote: 'Put on your headphones and take the test somewhere quiet.',
-    rules: [
-      { title: `${DURATION_SECONDS / 60} minutes`, detail: 'The timer starts when you tap Start.' },
-      { title: 'No going back', detail: 'One question at a time. Answer to continue.' },
-      { title: 'Recordings play twice', detail: 'Plays are counted on the server.' },
-      { title: 'Writing and speaking last', detail: 'One task each. Empty tasks score 0.' },
-      { title: 'Leaving pauses the timer', detail: 'Resume from the same question.' },
-      { title: 'Secure mode', detail: 'No copy or paste. Exits are recorded.' },
-    ],
-    durationMinutes: DURATION_SECONDS / 60,
-    needsHeadphones: true,
-    needsMicrophone: true,
-    sessionState: active ? active.status === 'paused' ? 'paused' : 'active' : 'none',
-  };
-}
-
-// Açık bir oturum varsa onu döndürür (devam), yoksa yenisini başlatır. Tek deneme hakkı: bitmiş sınav başlatılamaz.
 export async function startOrResumeSession(examId: string): Promise<SessionSnapshot> {
   await delay();
   if (isDone(examId)) throw new Error('This test has already been completed.');

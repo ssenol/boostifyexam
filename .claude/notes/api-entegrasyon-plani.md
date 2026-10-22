@@ -43,10 +43,11 @@ koda ve notlara yazılmaz):
 | Speaking | Simüle | Kayıt → `transcribe` → öğrenci metni düzeltir → `productive` (multipart) |
 | Rapor | Mock rapor + progress grafiği | `GET /results/:id` (puanlanırken 30 sn'de bir yenilenir) + sertifika HTML |
 
-## Yeni native paketler (prebuild + iki Mac'te yeniden build)
+## Native paketler (Aşama 3'te eklendi)
 
-`expo-audio` (dinleme ve kayıt), `react-native-webview` (yönerge HTML'i ve sertifika), `expo-print` + `expo-sharing`
-(PDF), `expo-screen-capture`, `expo-image` (soru ve şık görselleri). Bunlar tek seferde, Aşama 4'ün başında eklenir.
+`expo-audio` (dinleme, kayıt, ses testi), `react-native-webview` (yönerge HTML'i ve sertifika), `expo-print` +
+`expo-sharing` (PDF), `expo-screen-capture`, `expo-image` (soru ve şık görselleri), `expo-local-authentication`
+(biyometrik giriş). `expo-audio` arka planda çalma/kayıt kapalı (`app.config.js`).
 
 ## Aşamalar
 
@@ -104,6 +105,14 @@ Sınav **başlatılmaz**: her deneme gerçek ve geri alınamaz.
 - `instructionsHtml` (WebView), `timeLimitMinutes`, kurallar, "3 kez çıkarsan sınavın biter" uyarısı.
 - `parts`'a göre ses testi (sunucuya gitmez) ve mikrofon izni (`parts.speaking`).
 - Start ya da Resume → `POST /exams/:id/start`.
+
+> **Aşama 3 tamamlandı (2026-10-22).** Intro `GET /exams/:id`'den doluyor: yönerge (WebView, `HtmlBlock`),
+> `parts` ve süreye göre kurallar, gömülü test sesiyle kulaklık kontrolü (sessiz modda da çalar), gerçek mikrofon
+> izni (`useMicPermission`). Start bu aşamada sınavı başlatmaz, sadece sınav ekranını açar.
+> Kullanıcı isteğiyle eklendi: girişten sonra bir kez biyometrik giriş teklifi, login'de "Sign in with Face ID",
+> Profil'de Security bölümü (biyometrik aç/kapa, mikrofon izni). Telefonda şifre yoksa Profil şifreyi bir kez
+> sorar. Geri dönünce liste yenilemesi sessiz yapıldı (iOS'ta RefreshControl boşluk / donmuş simge bırakıyordu).
+> Native paketlerin hepsi bu aşamada eklendi (+ `expo-local-authentication`).
 
 **Aşama 4: Sınav ekranı, çoktan seçmeli kısım.**
 - `useExamSession` state'e göre yeniden yazılır: her yanıtta dönen state çizilir, istemci sıra tutmaz.
@@ -170,6 +179,19 @@ Kodu yazılmış ama demo hesabın o anki durumu yüzünden henüz denenemeyen d
 | ☐ | Results kartı | Tarih, seviye, "View report" | Bir sınavı bitirmek |
 | ☐ | Results kartı, `evaluating: true` | "Evaluating" etiketi | Bitirdikten hemen sonra (~1 dk) |
 | ☐ | Results kartı, `noLevel: true` | "Level not determined" | 8'den az puanlanan cevapla bitirmek |
+
+### Aşama 3: Intro, biyometrik giriş, mikrofon
+
+| ✓ | Durum | Beklenen | Nasıl oluşur |
+|---|---|---|---|
+| ☐ | Touch ID'li cihaz (iPad Air) | Düğme ve pencerelerde "Touch ID" | Fiziksel iPad |
+| ☐ | Android parmak izi / yüz tanıma | "Fingerprint" / "Face unlock" / "Biometrics" | Fiziksel Android |
+| ☐ | Şifre değiştikten sonra biyometrik giriş | Biyometrik kapanır, "Your password has changed…" | Web panelinden şifre değiştirmek |
+| ☐ | Cihazda kayıtlı yüz / parmak izi yok | Teklif çıkmaz; Profil'de düğme pasif, "Set up … first" | Kayıtsız cihaz / simülatör |
+| ☐ | Mikrofon izni reddedildi | Intro'da uyarı + Settings, Start yine açık; Profil'de "Settings" | İzni reddetmek |
+| ☐ | Intro'da kulaklıkla ses testi | Ses kulaklıktan gelir, telefon sessizdeyken de çalar | Fiziksel cihaz, sessiz mod |
+| ☐ | `parts` bölümleri kapalı sınav | Kapalı bölümün cihaz kontrolü ve kuralı görünmez | Listening / speaking'siz atama |
+| ☐ | Intro'da linkli yönerge | Link tarayıcıda açılır | `instructionsHtml` içinde link |
 
 ### Tablet görünümü
 

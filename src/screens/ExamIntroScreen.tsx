@@ -1,38 +1,90 @@
+import { setAudioModeAsync, useAudioPlayer } from 'expo-audio';
 import { router } from 'expo-router';
 import { ReactNode, useCallback, useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import Button from '../components/Button';
+import HtmlBlock from '../components/HtmlBlock';
 import { HeadphonesIcon, MicIcon } from '../components/icons';
+import Kicker from '../components/Kicker';
 import ScreenHeader from '../components/ScreenHeader';
 import StateView from '../components/StateView';
 import useAsyncData from '../hooks/useAsyncData';
 import useBottomSpacing from '../hooks/useBottomSpacing';
+import useMicPermission from '../hooks/useMicPermission';
 import useResponsive from '../hooks/useResponsive';
 import examService from '../services/exam';
 import { theme } from '../theme';
-import Kicker from '../components/Kicker';
+import { EXAM_TYPE_LABEL, type AssignedExam } from '../types/exam';
 
 const { colors, fonts, typography } = theme;
 
+const SOUND_CHECK = require('../../assets/sounds/sound-check.wav');
+
 interface ExamIntroScreenProps {
-  examId: string;
+  assignmentId: string;
 }
 
-export default function ExamIntroScreen({ examId }: ExamIntroScreenProps) {
+interface Rule {
+  title: string;
+  detail: string;
+}
+
+// Kurallar sınavın süresine ve bölümlerine göre (kaynak: "Placement ve Progress Sınavları Nasıl İşler")
+function buildRules(exam: AssignedExam): Rule[] {
+  const { parts, timeLimitMinutes } = exam;
+  const rules: Rule[] = [
+    timeLimitMinutes
+      ? { title: `${timeLimitMinutes} minutes`, detail: 'The timer starts when you tap Start.' }
+      : { title: 'No time limit', detail: 'Take the time you need.' },
+    { title: 'One question at a time', detail: 'Answer to continue. You can’t go back.' },
+  ];
+  if (parts.listening) {
+    rules.push({ title: 'Recordings have limited plays', detail: 'Each play is counted, so listen carefully.' });
+  }
+  if (parts.writing || parts.speaking) {
+    rules.push({
+      title: 'Writing and speaking come last',
+      detail: timeLimitMinutes ? 'The last 20 minutes are kept for them.' : 'One task each.',
+    });
+  }
+  rules.push(
+    { title: 'Single attempt', detail: 'If you stop, you continue where you left off.' },
+    { title: 'Stay in the app', detail: 'Leaving the app 3 times or not touching the screen for 10 minutes ends your test.' },
+  );
+  return rules;
+}
+
+const DESCRIPTION = {
+  placement: 'Questions start in the middle and adapt to your answers. You won’t see a question twice.',
+  progress: 'Questions start near your last level and adapt to your answers. You won’t see a question twice.',
+};
+
+type SoundState = 'idle' | 'played' | 'heard';
+
+// Sınav girişi: yönerge, kurallar ve cihaz kontrolü. Sınavı burası başlatmaz; Start sınav ekranını açar,
+// deneme orada POST /exams/:id/start ile oluşturulur.
+export default function ExamIntroScreen({ assignmentId }: ExamIntroScreenProps) {
   const bottom = useBottomSpacing();
   const { isTablet } = useResponsive();
   const styles = useMemo(() => createStyles(isTablet), [isTablet]);
 
-  const load = useCallback(() => examService.getExamDetail(examId), [examId]);
+  const load = useCallback(() => examService.getExam(assignmentId), [assignmentId]);
   const { data: exam, loading, error, reload } = useAsyncData(load);
 
-  // TODO: Gerçek kontroller: kulaklık için kısa bir ses çalınacak (expo-audio + ses çıkışı tespiti),
-  // mikrofon için izin istenecek. Şimdilik prototipteki gibi dokununca onaylanıyor.
-  const [audioOk, setAudioOk] = useState(false);
-  const [micOk, setMicOk] = useState(false);
+  const player = useAudioPlayer(SOUND_CHECK);
+  const [sound, setSound] = useState<SoundState>('idle');
+  // Reddedilse de sınav başlar; speaking görevinde "teknik sorun" yolu var
+  const { status: mic, request: askMic, openSettings } = useMicPermission();
 
-  const goBack = () => router.back();
-  const header = <ScreenHeader backLabel="Assignments" onBack={goBack} />;
+  const playSound = async () => {
+    // Telefon sessizdeyken de çalsın (sınavdaki dinleme kayıtları için de gerekli)
+    await setAudioModeAsync({ playsInSilentMode: true }).catch(() => {});
+    player.seekTo(0);
+    player.play();
+    setSound((s) => (s === 'heard' ? s : 'played'));
+  };
+
+  const header = <ScreenHeader backLabel="Assignments" onBack={() => router.back()} />;
 
   if (!exam) {
     return (
@@ -43,11 +95,22 @@ export default function ExamIntroScreen({ examId }: ExamIntroScreenProps) {
     );
   }
 
-  const isContinue = exam.sessionState !== 'none';
-  // Konuşma görevi mikrofon olmadan yapılamaz; cihaz kontrolü bitmeden sınav başlamaz
-  const checksDone = (!exam.needsHeadphones || audioOk) && (!exam.needsMicrophone || micOk);
+  const { parts } = exam;
+  const soundDone = !parts.listening || sound === 'heard';
+  const micDone = !parts.speaking || mic !== 'unknown';
+  const checksDone = soundDone && micDone;
+  const canStart = exam.action === 'start' || exam.action === 'resume';
 
-  const start = () => router.replace({ pathname: '/exam/[id]/session', params: { id: exam.id } });
+  const start = () => router.replace({ pathname: '/exam/[id]/session', params: { id: exam.assignmentId } });
+
+  const pending = [!soundDone && 'headphones', !micDone && 'microphone'].filter(Boolean).join(' and ');
+  const hint = !canStart
+    ? null
+    : !checksDone
+      ? `Check your ${pending} first.`
+      : parts.speaking && mic === 'denied'
+        ? 'Microphone access is off. You can start, but your speaking task can’t be recorded.'
+        : null;
 
   return (
     <View style={styles.root}>
@@ -55,20 +118,20 @@ export default function ExamIntroScreen({ examId }: ExamIntroScreenProps) {
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.inner}>
           <View style={styles.heading}>
-            <Kicker accent>{exam.kicker}</Kicker>
+            <Kicker accent>{EXAM_TYPE_LABEL[exam.examType]}</Kicker>
             <Text style={styles.title} accessibilityRole="header">{exam.title}</Text>
-            <Text style={styles.description}>{exam.description}</Text>
+            <Text style={styles.description}>{DESCRIPTION[exam.examType]}</Text>
           </View>
 
-          {!!exam.teacherNote && (
-            <View style={styles.note}>
-              <Kicker>Note from your teacher</Kicker>
-              <Text style={styles.noteText}>{exam.teacherNote}</Text>
+          {!!exam.instructionsHtml.trim() && (
+            <View style={styles.instructions}>
+              <Kicker>Instructions</Kicker>
+              <HtmlBlock html={exam.instructionsHtml} />
             </View>
           )}
 
           <View style={styles.rules}>
-            {exam.rules.map((rule, i) => (
+            {buildRules(exam).map((rule, i) => (
               <View key={rule.title} style={styles.rule}>
                 <Text style={styles.ruleNumber}>{String(i + 1).padStart(2, '0')}</Text>
                 <View style={styles.ruleText}>
@@ -79,31 +142,50 @@ export default function ExamIntroScreen({ examId }: ExamIntroScreenProps) {
             ))}
           </View>
 
-          {(exam.needsHeadphones || exam.needsMicrophone) && (
+          {(parts.listening || parts.speaking) && (
             <View style={styles.checks}>
               <Kicker>Device check</Kicker>
               <View style={styles.checkGrid}>
-                {exam.needsHeadphones && (
+                {parts.listening && (
                   <DeviceCheck
                     icon={<HeadphonesIcon />}
                     label="Headphones"
-                    done={audioOk}
-                    actionLabel="Sound test"
-                    doneLabel="Heard ✓"
-                    onPress={() => setAudioOk(true)}
+                    detail={sound === 'heard' ? 'Sound works.' : 'Put them on and play a sound.'}
                     first
-                  />
+                  >
+                    {sound === 'heard' ? (
+                      <Button label="Heard ✓" variant="ghost" size="compact" disabled onPress={() => {}} style={checkStyles.doneButton} />
+                    ) : (
+                      <>
+                        <Button label={sound === 'idle' ? 'Play sound' : 'Play again'} variant="secondary" size="compact" onPress={playSound} />
+                        {sound === 'played' && (
+                          <Button label="I heard it" variant="secondary" size="compact" onPress={() => setSound('heard')} />
+                        )}
+                      </>
+                    )}
+                  </DeviceCheck>
                 )}
-                {exam.needsMicrophone && (
+                {parts.speaking && (
                   <DeviceCheck
                     icon={<MicIcon />}
                     label="Microphone"
-                    done={micOk}
-                    actionLabel="Allow"
-                    doneLabel="Allowed ✓"
-                    onPress={() => setMicOk(true)}
-                    first={!exam.needsHeadphones}
-                  />
+                    detail={
+                      mic === 'granted'
+                        ? 'Ready to record.'
+                        : mic === 'denied'
+                          ? 'Access is off. Turn it on in Settings.'
+                          : 'Needed for the speaking task.'
+                    }
+                    first={!parts.listening}
+                  >
+                    {mic === 'granted' ? (
+                      <Button label="Allowed ✓" variant="ghost" size="compact" disabled onPress={() => {}} style={checkStyles.doneButton} />
+                    ) : mic === 'denied' ? (
+                      <Button label="Settings" variant="secondary" size="compact" onPress={openSettings} />
+                    ) : (
+                      <Button label="Allow" variant="secondary" size="compact" onPress={askMic} />
+                    )}
+                  </DeviceCheck>
                 )}
               </View>
             </View>
@@ -112,12 +194,18 @@ export default function ExamIntroScreen({ examId }: ExamIntroScreenProps) {
       </ScrollView>
 
       <View style={[styles.footer, { paddingBottom: bottom(12) }]}>
-        {!checksDone && <Text style={styles.footerHint}>Check your headphones and microphone first.</Text>}
+        {!!hint && <Text style={styles.footerHint}>{hint}</Text>}
         <Button
-          label={isContinue ? 'Continue test' : 'Start test · timer begins'}
+          label={
+            exam.action === 'resume'
+              ? 'Continue test'
+              : exam.action === 'start'
+                ? 'Start test · timer begins'
+                : 'This test is not open'
+          }
           size="large"
-          trailing
-          disabled={!checksDone}
+          trailing={canStart || undefined}
+          disabled={!canStart || !checksDone}
           onPress={start}
           style={styles.startButton}
         />
@@ -129,26 +217,22 @@ export default function ExamIntroScreen({ examId }: ExamIntroScreenProps) {
 interface DeviceCheckProps {
   icon: ReactNode;
   label: string;
-  done: boolean;
-  actionLabel: string;
-  doneLabel: string;
-  onPress: () => void;
+  detail: string;
   first?: boolean;
+  children: ReactNode;
 }
 
-function DeviceCheck({ icon, label, done, actionLabel, doneLabel, onPress, first }: DeviceCheckProps) {
+function DeviceCheck({ icon, label, detail, first, children }: DeviceCheckProps) {
   return (
     <View style={[checkStyles.cell, first && checkStyles.cellFirst]}>
-      {icon}
-      <Text style={checkStyles.label}>{label}</Text>
-      <Button
-        label={done ? doneLabel : actionLabel}
-        variant={done ? 'ghost' : 'secondary'}
-        size="compact"
-        onPress={onPress}
-        disabled={done}
-        style={done ? checkStyles.doneButton : undefined}
-      />
+      <View style={checkStyles.info}>
+        {icon}
+        <View style={checkStyles.text}>
+          <Text style={checkStyles.label}>{label}</Text>
+          <Text style={typography.muted}>{detail}</Text>
+        </View>
+      </View>
+      <View style={checkStyles.actions}>{children}</View>
     </View>
   );
 }
@@ -183,16 +267,10 @@ const createStyles = (isTablet: boolean) => {
       ...typography.body,
       color: colors.neutral800,
     },
-    note: {
+    instructions: {
       backgroundColor: colors.surface,
       padding: 16,
-      gap: 4,
-    },
-    noteText: {
-      fontFamily: fonts.semiBold,
-      fontSize: 16,
-      lineHeight: 22,
-      color: colors.text,
+      gap: 8,
     },
     rules: {
       borderTopWidth: 2,
@@ -255,9 +333,7 @@ const createStyles = (isTablet: boolean) => {
 const checkStyles = StyleSheet.create({
   cell: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
+    gap: 10,
     paddingVertical: 14,
     paddingHorizontal: 12,
     backgroundColor: colors.bg,
@@ -266,11 +342,24 @@ const checkStyles = StyleSheet.create({
   cellFirst: {
     paddingLeft: 0,
   },
-  label: {
+  info: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  text: {
     flex: 1,
+    gap: 2,
+  },
+  label: {
     fontFamily: fonts.semiBold,
     fontSize: 15,
     color: colors.text,
+  },
+  actions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
   },
   // Onaylanmış durum soluk görünmesin
   doneButton: {

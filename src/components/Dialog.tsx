@@ -1,4 +1,5 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { ReactNode } from 'react';
+import { KeyboardAvoidingView, StyleSheet, Text, View } from 'react-native';
 import { theme } from '../theme';
 import Button from './Button';
 import Kicker from './Kicker';
@@ -16,17 +17,21 @@ export interface DialogConfig {
   secondaryLabel?: string;
   onSecondary?: () => void;
   busy?: boolean;
+  // Gövde ile düğmeler arasında ek içerik (ör. şifre alanı)
+  children?: ReactNode;
 }
 
 // Ekranın üstünde, kapatılamayan (arka plana dokununca kapanmayan) onay penceresi. Prototipteki .dialog.
 // RN Modal yerine absolute view: sınav ekranı tek parça kalır, AppState olayları Modal'la çakışmaz.
-export default function Dialog({ kicker, title, body, tone = 'default', primaryLabel, onPrimary, secondaryLabel, onSecondary, busy }: DialogConfig) {
+export default function Dialog({ kicker, title, body, tone = 'default', primaryLabel, onPrimary, secondaryLabel, onSecondary, busy, children }: DialogConfig) {
   return (
-    <View style={styles.backdrop} accessibilityViewIsModal>
+    // Ekranın kökünde (y = 0) durduğu için "padding" iki platformda da doğru: klavye açılınca pencere yukarı kayar
+    <KeyboardAvoidingView style={styles.backdrop} behavior="padding" accessibilityViewIsModal>
       <View style={[styles.dialog, { borderTopColor: tone === 'warn' ? colors.warn : colors.text }]}>
         <Kicker accent>{kicker}</Kicker>
         <Text style={styles.title} accessibilityRole="header">{title}</Text>
         <Text style={styles.body}>{body}</Text>
+        {children}
         <View style={styles.actions}>
           <Button label={primaryLabel} onPress={onPrimary} loading={busy} />
           {secondaryLabel && onSecondary && (
@@ -34,7 +39,7 @@ export default function Dialog({ kicker, title, body, tone = 'default', primaryL
           )}
         </View>
       </View>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 

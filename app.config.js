@@ -44,6 +44,25 @@ module.exports = {
       "expo-font",
       "expo-screen-orientation",
       "expo-status-bar",
+      [
+        "expo-audio",
+        {
+          // Speaking görevinde konuşma kaydı için
+          microphonePermission: "BoostifyExam records your voice for the speaking task of your test.",
+          // Sınavda uygulamadan çıkılınca ses çalmaya ya da kayda devam edilmez
+          enableBackgroundPlayback: false,
+          enableBackgroundRecording: false
+        }
+      ],
+      "expo-image",
+      "expo-sharing",
+      [
+        "expo-local-authentication",
+        {
+          // Çıkıştan sonra şifre yazmadan giriş (Profil'den açılıp kapanır)
+          faceIDPermission: "BoostifyExam uses Face ID to sign you in without your password."
+        }
+      ],
       "./plugins/withPodsDeploymentTarget",
       [
         "expo-build-properties",

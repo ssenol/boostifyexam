@@ -3,5 +3,5 @@ import ExamIntroScreen from '@/src/screens/ExamIntroScreen';
 
 export default function ExamIntro() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  return <ExamIntroScreen examId={id} />;
+  return <ExamIntroScreen assignmentId={id} />;
 }

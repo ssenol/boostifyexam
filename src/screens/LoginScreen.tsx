@@ -1,18 +1,22 @@
-import { useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
+import { useFocusEffect } from 'expo-router';
 import { Alert, KeyboardAvoidingView, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path, Rect } from 'react-native-svg';
 import BrandMark from '../components/BrandMark';
 import Button from '../components/Button';
+import Dialog from '../components/Dialog';
 import { toUpperCaseEn } from '../components/Kicker';
 import TextField from '../components/TextField';
 import useBottomSpacing from '../hooks/useBottomSpacing';
 import useResponsive from '../hooks/useResponsive';
 import authService from '../services/auth';
+import biometricAuth from '../services/biometricAuth';
 import { useAppDispatch } from '../store/hooks';
 import { setCredentials } from '../store/slices/authSlice';
 import { theme } from '../theme';
-import { ApiError, getErrorMessage } from '../utils/errors';
+import type { AuthSession } from '../types/api';
+import { ApiError, getErrorMessage, isApiError } from '../utils/errors';
 
 const { colors, fonts } = theme;
 
@@ -38,6 +42,37 @@ export default function LoginScreen() {
   const [loading, setLoading] = useState(false);
   const passwordRef = useRef<TextInput>(null);
 
+  // Biyometrik giriş düğmesinin etiketi ("Face ID"); kapalıysa ya da bilgi yoksa null
+  const [biometricLabel, setBiometricLabel] = useState<string | null>(null);
+  const [biometricLoading, setBiometricLoading] = useState(false);
+  // Şifreyle girişten sonra biyometrik teklifi gösterilirken oturum burada bekler
+  const [offer, setOffer] = useState<{ session: AuthSession; label: string } | null>(null);
+  const [offerBusy, setOfferBusy] = useState(false);
+
+  // Yönlendirme yok: isAuthenticated değişince (auth)/login.tsx Redirect ile ana ekrana geçer
+  const enterApp = (session: AuthSession) => {
+    dispatch(setCredentials({
+      accessToken: session.accessToken,
+      refreshToken: session.refreshToken,
+      user: session.user,
+    }));
+  };
+
+  const refreshBiometric = useCallback(async () => {
+    const [enabled, credentials, availability] = await Promise.all([
+      biometricAuth.isEnabled(),
+      biometricAuth.getCredentials(),
+      biometricAuth.getAvailability(),
+    ]);
+    setBiometricLabel(enabled && credentials && availability.enrolled ? availability.label : null);
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      refreshBiometric().catch(() => setBiometricLabel(null));
+    }, [refreshBiometric]),
+  );
+
   const handleLogin = async () => {
     if (!username.trim() || !password) {
       Alert.alert('Sign in failed', getErrorMessage(new ApiError('credentials_required', 400, '')));
@@ -46,18 +81,75 @@ export default function LoginScreen() {
 
     try {
       setLoading(true);
-      const session = await authService.login(username.trim(), password);
-      // Yönlendirme yok: isAuthenticated değişince (auth)/login.tsx Redirect ile ana ekrana geçer
-      dispatch(setCredentials({
-        accessToken: session.accessToken,
-        refreshToken: session.refreshToken,
-        user: session.user,
-      }));
+      const credentials = { username: username.trim(), password };
+      const session = await authService.login(credentials.username, credentials.password);
+      // Son başarılı giriş; biyometrik sonradan Profil'den açılırsa bu kullanılır
+      await biometricAuth.saveCredentials(credentials).catch(() => {});
+
+      // Biyometrik giriş bir kez teklif edilir (cihazda kayıtlı yüz / parmak izi varsa)
+      const [enabled, shown, availability] = await Promise.all([
+        biometricAuth.isEnabled(),
+        biometricAuth.wasPromptShown(),
+        biometricAuth.getAvailability(),
+      ]);
+      if (!enabled && !shown && availability.enrolled) {
+        setOffer({ session, label: availability.label });
+        return;
+      }
+      enterApp(session);
     } catch (e) {
       Alert.alert('Sign in failed', getErrorMessage(e));
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleBiometricLogin = async () => {
+    if (!biometricLabel) return;
+    setBiometricLoading(true);
+    try {
+      const credentials = await biometricAuth.getCredentials();
+      if (!credentials) {
+        setBiometricLabel(null);
+        return;
+      }
+      if (!(await biometricAuth.authenticate(`Sign in with ${biometricLabel}`))) return;
+      enterApp(await authService.login(credentials.username, credentials.password));
+    } catch (e) {
+      // Şifre değiştiyse saklanan bilgi geçersiz: biyometrik kapanır, şifreyle girilir
+      if (isApiError(e, 'invalid_credentials')) {
+        await biometricAuth.disable().catch(() => {});
+        setBiometricLabel(null);
+        Alert.alert('Sign in with your password', `Your password has changed. Sign in with your password to use ${biometricLabel} again.`);
+      } else {
+        Alert.alert('Sign in failed', getErrorMessage(e));
+      }
+    } finally {
+      setBiometricLoading(false);
+    }
+  };
+
+  const acceptOffer = async () => {
+    if (!offer) return;
+    setOfferBusy(true);
+    try {
+      // Önce doğrulat: hem çalıştığı görülür hem iOS'un Face ID izni burada sorulur
+      if (await biometricAuth.authenticate(`Turn on ${offer.label}`)) {
+        await biometricAuth.setEnabled(true);
+      }
+    } catch {
+      // Biyometrik açılamazsa giriş yine tamamlanır
+    } finally {
+      await biometricAuth.markPromptShown().catch(() => {});
+      setOfferBusy(false);
+      enterApp(offer.session);
+    }
+  };
+
+  const declineOffer = async () => {
+    if (!offer) return;
+    await biometricAuth.markPromptShown().catch(() => {});
+    enterApp(offer.session);
   };
 
   // TODO: SSO akışı backend ile netleşince bağlanacak
@@ -160,7 +252,16 @@ export default function LoginScreen() {
             </Svg>
           }
         />
-        <Button label="School account (SSO)" variant="secondary" onPress={handleSso} disabled={loading} />
+        {biometricLabel && (
+          <Button
+            label={`Sign in with ${biometricLabel}`}
+            variant="secondary"
+            onPress={handleBiometricLogin}
+            loading={biometricLoading}
+            disabled={loading}
+          />
+        )}
+        <Button label="School account (SSO)" variant="secondary" onPress={handleSso} disabled={loading || biometricLoading} />
       </View>
 
       <View style={styles.secureNote}>
@@ -196,6 +297,18 @@ export default function LoginScreen() {
           {panel}
           <View style={styles.formScroll}>{form}</View>
         </ScrollView>
+      )}
+      {offer && (
+        <Dialog
+          kicker="Faster sign-in"
+          title={`Use ${offer.label} next time?`}
+          body={`Sign in with ${offer.label} instead of your password. You can change this in your profile.`}
+          primaryLabel={`Use ${offer.label}`}
+          onPrimary={acceptOffer}
+          secondaryLabel="Not now"
+          onSecondary={declineOffer}
+          busy={offerBusy}
+        />
       )}
     </KeyboardAvoidingView>
   );

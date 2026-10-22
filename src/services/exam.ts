@@ -2,7 +2,7 @@ import { API_ENDPOINTS, apiGet } from "../config/api";
 import * as mock from "../mocks/examServer";
 import type { AssignedExam, ExamList, ResultSummary } from "../types/exam";
 
-// Sınav servisi. Listeler mobil sınav API'sine bağlı; Intro, oturum ve rapor metotları henüz sahte sunucuyu
+// Sınav servisi. Listeler ve tek sınav mobil sınav API'sine bağlı; oturum ve rapor metotları henüz sahte sunucuyu
 // (src/mocks/examServer.ts) çağırıyor ve aşama aşama API'ye geçecek (.claude/notes/api-entegrasyon-plani.md).
 class ExamService {
   // Sınav listesi: kartlardaki düğmeyi her sınavın action alanı belirler
@@ -21,8 +21,6 @@ class ExamService {
     const data = await apiGet<{ results: ResultSummary[] }>(API_ENDPOINTS.results);
     return data.results;
   }
-
-  getExamDetail = mock.getExamDetail;
 
   // Oturum
   startOrResumeSession = mock.startOrResumeSession;

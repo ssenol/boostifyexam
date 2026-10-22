@@ -8,6 +8,9 @@ interface AsyncData<T> {
   refreshing: boolean;
   error: string | null;
   reload: () => Promise<void>;
+  // Yükleniyor göstergesi olmadan yeniler (ör. ekrana geri dönülünce). iOS'ta RefreshControl'ü programla açıp
+  // kapatmak, ekran geçişi sırasında listeyi aşağıda bırakıyordu (boşluk / donmuş simge).
+  reloadQuietly: () => Promise<void>;
 }
 
 // Servis çağrısını yükleme/hata durumuyla sarar. `load` her render'da değişmesin diye useCallback ile verilmeli.
@@ -52,5 +55,5 @@ export default function useAsyncData<T>(load: () => Promise<T>): AsyncData<T> {
     };
   }, [fetchData]);
 
-  return { data, loading, refreshing, error, reload };
+  return { data, loading, refreshing, error, reload, reloadQuietly: fetchData };
 }

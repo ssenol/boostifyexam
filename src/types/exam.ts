@@ -1,12 +1,17 @@
 import type { EnglishLevel } from './api';
 
-// Sınav akışının tipleri. Liste tipleri mobil sınav API'sine göre (rehber); Intro, oturum ve rapor tipleri henüz
+// Sınav akışının tipleri. Liste tipleri mobil sınav API'sine göre (rehber); oturum ve rapor tipleri henüz
 // src/mocks/examServer.ts'in şekli ve sırasıyla API'ye geçirilecek (.claude/notes/api-entegrasyon-plani.md).
 
 export const CEFR_LEVELS = ['A1', 'A1+', 'A2', 'A2+', 'B1', 'B1+', 'B2', 'B2+', 'C1', 'C2'] as const;
 export type CefrLevel = (typeof CEFR_LEVELS)[number];
 
 export type ExamKind = 'placement' | 'progress';
+
+export const EXAM_TYPE_LABEL: Record<ExamKind, string> = {
+  placement: 'Placement test',
+  progress: 'Progress test',
+};
 
 // --- Sınav ve sonuç listeleri (GET /exams, GET /results) ---------------------------------------------
 
@@ -68,31 +73,6 @@ export interface ResultSummary {
   evaluating: boolean;
   // Çok az cevap var, seviye verilmedi
   noLevel: boolean;
-}
-
-// Mock'taki oturum durumu (Intro). Aşama 3'te kaldırılacak.
-export type SessionState = 'none' | 'active' | 'paused';
-
-// --- Intro ---------------------------------------------------------------------------------------
-
-export interface ExamRule {
-  title: string;
-  detail: string;
-}
-
-export interface ExamDetail {
-  id: string;
-  kind: ExamKind;
-  typeLabel: string;
-  kicker: string; // "Progress test · 3 of 4"
-  title: string;
-  description: string;
-  teacherNote: string | null;
-  rules: ExamRule[];
-  durationMinutes: number;
-  needsHeadphones: boolean;
-  needsMicrophone: boolean;
-  sessionState: SessionState;
 }
 
 // --- Sınav oturumu -------------------------------------------------------------------------------

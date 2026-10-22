@@ -38,6 +38,15 @@ Proje Dropbox ile iki Mac arasında senkronlanıyor. `node_modules`, `ios`, `and
   `xcrun devicectl device install app --device <UDID> <DerivedData>/Debug-iphoneos/BoostifyExam.app` +
   `xcrun devicectl device process launch --device <UDID> com.uesturkey.boostifyexam`
 
+## Native paket eklendiğinde
+
+Bir Mac'te native paket eklenince (`package.json` + `app.config.js` değişir) diğer Mac'te bir kez:
+`npm ci` → `npx expo prebuild --clean` → `xattr -w com.dropbox.ignored 1 ios android` → yeniden build.
+`npm ci` sonrası `node_modules` işareti korunur (klasör silinmez), ama emin olmak için `xattr -p` ile bakılabilir.
+
+- 2026-10-22: `expo-audio`, `react-native-webview`, `expo-print`, `expo-sharing`, `expo-screen-capture`,
+  `expo-image`, `expo-local-authentication` eklendi (Mac B). Mac A'da yukarıdaki adımlar gerekli.
+
 ## Durum (2026-10-22)
 
 - Mac A (Android Studio `~/Applications` altında): iOS iPhone + iPad'de çalıştı, Android debug build alındı.
