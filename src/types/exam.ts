@@ -1,59 +1,77 @@
-// Sınav akışının tipleri. Backend API'si henüz yok; bu tipler src/mocks/examServer.ts'in döndürdüğü şekli ve
-// API'den beklediğimiz sözleşmeyi tanımlar. API gelince alan adları ona göre güncellenir.
+import type { EnglishLevel } from './api';
+
+// Sınav akışının tipleri. Liste tipleri mobil sınav API'sine göre (rehber); Intro, oturum ve rapor tipleri henüz
+// src/mocks/examServer.ts'in şekli ve sırasıyla API'ye geçirilecek (.claude/notes/api-entegrasyon-plani.md).
 
 export const CEFR_LEVELS = ['A1', 'A1+', 'A2', 'A2+', 'B1', 'B1+', 'B2', 'B2+', 'C1', 'C2'] as const;
 export type CefrLevel = (typeof CEFR_LEVELS)[number];
 
 export type ExamKind = 'placement' | 'progress';
 
-// --- Assignments ---------------------------------------------------------------------------------
+// --- Sınav ve sonuç listeleri (GET /exams, GET /results) ---------------------------------------------
 
-// Öğrencinin oturum durumu; "paused" ise kartta Start yerine Continue gösterilir
+// Kartta hangi düğmenin gösterileceğini sunucu söyler; uygulama tarih veya durum hesabı yapmaz
+export type ExamAction = 'start' | 'resume' | 'view_result' | 'wait' | 'closed' | 'missed';
+
+// Bilgi amaçlı; düğme için action kullanılır
+export type ExamWindow = 'open' | 'upcoming' | 'closed';
+
+export interface ExamParts {
+  listening: boolean;
+  writing: boolean;
+  speaking: boolean;
+}
+
+export interface AssignedExam {
+  assignmentId: string;
+  examType: ExamKind;
+  title: string;
+  instructionsHtml: string;
+  // Boş olabilir; boşsa varsayılan görsel
+  coverImage: string;
+  startDate: string;
+  dueDate: string;
+  // null = süre yok
+  timeLimitMinutes: number | null;
+  window: ExamWindow;
+  parts: ExamParts;
+  requireBeforeOtherWork: boolean;
+  // Başlanmış deneme yoksa boş string
+  sessionId: string;
+  sessionStatus: string;
+  sessionPhase: string;
+  // Bitmiş denemenin seviyesi, yoksa boş string
+  cefrLevel: string;
+  // Sadece yarım kalmış denemede gelir
+  paused?: boolean;
+  remainingSec?: number | null;
+  action: ExamAction;
+}
+
+export interface ExamList {
+  level: EnglishLevel | null;
+  // Açık ve bitmemiş bir placement var, önce o çözülmeli
+  mustTakePlacement: boolean;
+  exams: AssignedExam[];
+}
+
+export interface ResultSummary {
+  sessionId: string;
+  assignmentId: string;
+  examType: ExamKind;
+  title: string;
+  coverImage: string;
+  finishedAt: string;
+  status: string;
+  cefrLevel: string;
+  // Writing veya speaking henüz puanlanıyor
+  evaluating: boolean;
+  // Çok az cevap var, seviye verilmedi
+  noLevel: boolean;
+}
+
+// Mock'taki oturum durumu (Intro). Aşama 3'te kaldırılacak.
 export type SessionState = 'none' | 'active' | 'paused';
-
-export interface OpenExam {
-  id: string;
-  kind: ExamKind;
-  typeLabel: string; // "Progress test"
-  title: string;
-  closesLabel: string; // "14 Feb 2027, 23:59"
-  durationMinutes: number;
-  singleAttempt: boolean;
-  sessionState: SessionState;
-}
-
-export type SeriesState = 'done' | 'open' | 'upcoming';
-
-export interface SeriesItem {
-  id: string;
-  short: string; // "Start of term 2"
-  state: SeriesState;
-  meta: string; // "Level B1" | "Closes 14 Feb" | "Opens 7 Jun 2027"
-}
-
-export interface ProgressSeries {
-  title: string; // "Progress tests · 2026–27"
-  items: SeriesItem[];
-}
-
-export type LevelStatus = 'Provisional' | 'Confirmed';
-
-export interface CompletedExam {
-  id: string;
-  typeLabel: string;
-  title: string;
-  completedLabel: string; // "Completed 20 Jan 2027"
-  level: CefrLevel;
-  status: LevelStatus;
-  // Önceki teste göre değişim; ilk testte null (Baseline)
-  change: string | null;
-}
-
-export interface AssignmentsData {
-  open: OpenExam[];
-  series: ProgressSeries | null;
-  completed: CompletedExam[];
-}
 
 // --- Intro ---------------------------------------------------------------------------------------
 
@@ -181,6 +199,8 @@ export interface SecurityEvent {
 }
 
 // --- Sonuç ve rapor ------------------------------------------------------------------------------
+
+export type LevelStatus = 'Provisional' | 'Confirmed';
 
 export interface ExamResult {
   examId: string;

@@ -23,6 +23,9 @@ export const API_ENDPOINTS = {
     logout: "/auth/logout",
   },
   me: "/me",
+  exams: "/exams",
+  exam: (assignmentId: string) => `/exams/${assignmentId}`,
+  results: "/results",
 } as const;
 
 const TIMEOUT_MS = 20000;

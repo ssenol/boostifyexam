@@ -8,11 +8,9 @@
 
 import {
   CEFR_LEVELS,
-  type AssignmentsData,
   type AudioClip,
   type CefrLevel,
   type ChoiceItem,
-  type CompletedExam,
   type ExamDetail,
   type ExamReport,
   type ExamResult,
@@ -52,7 +50,6 @@ const SERIES: ExamDef[] = [
 const ALL_EXAMS = [PLACEMENT, ...SERIES];
 // Prototipteki "both" planı: placement + progress serisi, şu an açık olan p3
 const OPEN_EXAM_ID = 'p3';
-const OPEN_EXAM_CLOSES_SHORT = 'Closes 14 Feb';
 const PROVISIONAL_LEVEL: CefrLevel = 'B1+';
 
 // Tamamlanmış testlerin seviyeleri (sunucudaki geçmiş)
@@ -209,59 +206,6 @@ const snapshot = (s: Session): SessionSnapshot => {
 };
 
 // --- Uç noktalar ---------------------------------------------------------------------------------
-
-export async function getAssignments(): Promise<AssignmentsData> {
-  await delay();
-  const open = completedOpenExam ? [] : [examDef(OPEN_EXAM_ID)];
-  const doneIds = ALL_EXAMS.map((e) => e.id).filter(isDone);
-
-  const completed: CompletedExam[] = doneIds
-    .map((id, i) => {
-      const def = examDef(id);
-      const level = levelOf(id)!;
-      const prev = i > 0 ? levelOf(doneIds[i - 1]) : null;
-      return {
-        id,
-        typeLabel: def.typeLabel,
-        title: def.title,
-        completedLabel: `Completed ${def.dateLabel}`,
-        level,
-        status: id === OPEN_EXAM_ID ? 'Provisional' : 'Confirmed',
-        change: prev ? changeText(level, prev) : null,
-      } satisfies CompletedExam;
-    })
-    .reverse();
-
-  return {
-    open: open.map((def) => {
-      const active = activeSessionFor(def.id);
-      return {
-        id: def.id,
-        kind: def.kind,
-        typeLabel: def.typeLabel,
-        title: def.title,
-        closesLabel: def.closesLabel ?? '',
-        durationMinutes: DURATION_SECONDS / 60,
-        singleAttempt: true,
-        sessionState: active ? active.status === 'paused' ? 'paused' : 'active' : 'none',
-      };
-    }),
-    series: {
-      title: 'Progress tests · 2026–27',
-      items: SERIES.map((def) => {
-        const level = levelOf(def.id);
-        const state = level ? 'done' : def.id === OPEN_EXAM_ID ? 'open' : 'upcoming';
-        return {
-          id: def.id,
-          short: def.short,
-          state,
-          meta: state === 'done' ? `Level ${level}` : state === 'open' ? OPEN_EXAM_CLOSES_SHORT : `Opens ${def.dateLabel}`,
-        };
-      }),
-    },
-    completed,
-  };
-}
 
 export async function getExamDetail(examId: string): Promise<ExamDetail> {
   await delay();

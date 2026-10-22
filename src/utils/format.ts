@@ -9,6 +9,13 @@ export function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
+// ISO tarih (UTC) → telefonun saat diliminde "31 Dec 2026, 23:59"
+export function formatDateTime(iso: string): string {
+  const date = new Date(iso);
+  const time = date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+  return `${formatDate(iso)}, ${time}`;
+}
+
 export function countWords(text: string): number {
   return text.trim().split(/\s+/).filter(Boolean).length;
 }

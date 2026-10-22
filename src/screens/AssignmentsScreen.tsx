@@ -2,6 +2,8 @@ import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Button from '../components/Button';
+import CoverImage from '../components/CoverImage';
+import Kicker from '../components/Kicker';
 import ScreenHeader from '../components/ScreenHeader';
 import StateView from '../components/StateView';
 import Tag from '../components/Tag';
@@ -10,20 +12,32 @@ import useBottomSpacing from '../hooks/useBottomSpacing';
 import useResponsive from '../hooks/useResponsive';
 import examService from '../services/exam';
 import { theme } from '../theme';
-import type { CompletedExam, OpenExam, ProgressSeries, SeriesState } from '../types/exam';
-import Kicker, { toUpperCaseEn } from '../components/Kicker';
+import type { AssignedExam, ExamKind, ResultSummary } from '../types/exam';
+import { formatDate, formatDateTime } from '../utils/format';
 
 const { colors, fonts, typography } = theme;
 
-type Tab = 'open' | 'done';
+type Tab = 'tests' | 'results';
 
+const TYPE_LABEL: Record<ExamKind, string> = {
+  placement: 'Placement test',
+  progress: 'Progress test',
+};
+
+// Başlanabilir ya da devam edilebilir sınav
+const isActionable = (exam: AssignedExam) => exam.action === 'start' || exam.action === 'resume';
+
+// Ana ekran: GET /exams (Tests) + GET /results (Results)
 export default function AssignmentsScreen() {
   const bottom = useBottomSpacing();
   const { isTablet } = useResponsive();
   const styles = useMemo(() => createStyles(isTablet), [isTablet]);
-  const [tab, setTab] = useState<Tab>('open');
+  const [tab, setTab] = useState<Tab>('tests');
 
-  const load = useCallback(() => examService.getAssignments(), []);
+  const load = useCallback(async () => {
+    const [list, results] = await Promise.all([examService.getExams(), examService.getResults()]);
+    return { list, results };
+  }, []);
   const { data, loading, refreshing, error, reload } = useAsyncData(load);
 
   // Sınavdan dönünce (bitti / duraklatıldı) liste güncellensin; ilk odaklanmada useAsyncData zaten yüklüyor
@@ -34,6 +48,15 @@ export default function AssignmentsScreen() {
       focusedOnce.current = true;
     }, [reload]),
   );
+
+  // Açık bir placement varsa önce o çözülmeli: en üstte ve vurgulu
+  const exams = useMemo(() => {
+    if (!data) return [];
+    const { exams: all, mustTakePlacement } = data.list;
+    if (!mustTakePlacement) return all;
+    const first = (e: AssignedExam) => e.examType === 'placement' && isActionable(e);
+    return [...all.filter(first), ...all.filter((e) => !first(e))];
+  }, [data]);
 
   const header = (
     <ScreenHeader
@@ -51,6 +74,9 @@ export default function AssignmentsScreen() {
     );
   }
 
+  const { level, mustTakePlacement } = data.list;
+  const { results } = data;
+
   return (
     <View style={styles.root}>
       {header}
@@ -59,28 +85,47 @@ export default function AssignmentsScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={reload} tintColor={colors.accent} />}
       >
         <View style={styles.titleBlock}>
-          <Text style={styles.title} accessibilityRole="header">Assignments</Text>
+          <View style={styles.titleRow}>
+            <Text style={styles.title} accessibilityRole="header">Assignments</Text>
+            <View style={styles.levelBox}>
+              <Kicker>Your level</Kicker>
+              <Text style={level ? styles.level : styles.levelEmpty}>{level ? level.cefrLevel : 'Not measured yet'}</Text>
+            </View>
+          </View>
           <View style={styles.tabs} accessibilityRole="tablist">
-            <TabButton label={`Open · ${data.open.length}`} active={tab === 'open'} onPress={() => setTab('open')} />
-            <TabButton label={`Completed · ${data.completed.length}`} active={tab === 'done'} onPress={() => setTab('done')} />
+            <TabButton label={`Tests · ${exams.length}`} active={tab === 'tests'} onPress={() => setTab('tests')} />
+            <TabButton label={`Results · ${results.length}`} active={tab === 'results'} onPress={() => setTab('results')} />
           </View>
         </View>
 
-        {tab === 'open' ? (
+        {tab === 'tests' ? (
           <>
-            {data.open.length === 0 ? (
-              <EmptyNote title="No open tests" body="New tests from your teacher appear here." />
-            ) : (
-              data.open.map((exam) => <OpenExamCard key={exam.id} exam={exam} />)
+            {mustTakePlacement && (
+              <View style={styles.notice}>
+                <Text style={styles.noticeTitle}>Take your placement test first</Text>
+                <Text style={styles.noticeBody}>It sets your starting level. Your other work opens when you finish it.</Text>
+              </View>
             )}
-            {data.series && <SeriesGrid series={data.series} />}
+            {exams.length === 0 ? (
+              <EmptyNote title="No tests assigned to you" body="New tests from your school appear here." />
+            ) : (
+              <View style={styles.grid}>
+                {exams.map((exam) => (
+                  <ExamCard
+                    key={exam.assignmentId}
+                    exam={exam}
+                    highlighted={mustTakePlacement && exam.examType === 'placement' && isActionable(exam)}
+                  />
+                ))}
+              </View>
+            )}
           </>
-        ) : data.completed.length === 0 ? (
+        ) : results.length === 0 ? (
           <EmptyNote title="No completed tests yet" body="Finished tests and their reports appear here." />
         ) : (
-          <View style={styles.doneGrid}>
-            {data.completed.map((exam) => (
-              <CompletedCard key={exam.id} exam={exam} isTablet={isTablet} />
+          <View style={styles.grid}>
+            {results.map((result) => (
+              <ResultCard key={result.sessionId} result={result} isTablet={isTablet} />
             ))}
           </View>
         )}
@@ -102,109 +147,117 @@ function TabButton({ label, active, onPress }: { label: string; active: boolean;
   );
 }
 
-function OpenExamCard({ exam }: { exam: OpenExam }) {
-  const isPaused = exam.sessionState !== 'none';
-  return (
-    <View style={cardStyles.openCard}>
-      {/* TODO: Kart görseli API'den gelecek */}
-      <View style={cardStyles.cardImage}>
-        <Text style={cardStyles.placeholderLabel}>{toUpperCaseEn('Card image')}</Text>
-      </View>
-      <View style={cardStyles.openBody}>
-        <View style={cardStyles.tags}>
-          <Tag label={exam.typeLabel} />
-          {exam.singleAttempt && <Tag label="Single attempt" tone="neutral" />}
-          {isPaused && <Tag label="Paused" tone="neutral" />}
-        </View>
-        <Text style={cardStyles.openTitle}>{exam.title}</Text>
-        <View style={cardStyles.facts}>
-          <View style={cardStyles.fact}>
-            <Kicker>Closes</Kicker>
-            <Text style={cardStyles.factValue}>{exam.closesLabel}</Text>
-          </View>
-          <View style={[cardStyles.fact, cardStyles.factDivided]}>
-            <Kicker>Duration</Kicker>
-            <Text style={cardStyles.factValue}>{exam.durationMinutes} minutes</Text>
-          </View>
-        </View>
+const durationText = (minutes: number | null) => (minutes ? `${minutes} minutes` : 'No time limit');
+
+// Karttaki iki bilgi kutusu; içeriği action'a göre değişir
+function examFacts(exam: AssignedExam): [string, string][] {
+  switch (exam.action) {
+    case 'start':
+      return [['Closes', formatDateTime(exam.dueDate)], ['Duration', durationText(exam.timeLimitMinutes)]];
+    case 'resume': {
+      const left = exam.remainingSec == null ? 'No time limit' : `${Math.ceil(exam.remainingSec / 60)} minutes`;
+      return [['Closes', formatDateTime(exam.dueDate)], ['Time left', left]];
+    }
+    case 'wait':
+      return [['Opens', formatDateTime(exam.startDate)], ['Duration', durationText(exam.timeLimitMinutes)]];
+    case 'view_result':
+      return [['Level', exam.cefrLevel || '—'], ['Duration', durationText(exam.timeLimitMinutes)]];
+    case 'closed':
+    case 'missed':
+      return [['Closed', formatDateTime(exam.dueDate)]];
+  }
+}
+
+function ExamAction({ exam }: { exam: AssignedExam }) {
+  switch (exam.action) {
+    case 'start':
+      return (
         <Button
-          label={isPaused ? 'Continue' : 'Start'}
+          label="Start"
           trailing
-          onPress={() => router.push({ pathname: '/exam/[id]', params: { id: exam.id } })}
+          onPress={() => router.push({ pathname: '/exam/[id]', params: { id: exam.assignmentId } })}
         />
-      </View>
-    </View>
-  );
+      );
+    case 'resume':
+      // "Devam et" giriş ekranını atlar ve aynı denemeyi kaldığı yerden açar
+      return (
+        <Button
+          label="Continue"
+          trailing
+          onPress={() => router.push({ pathname: '/exam/[id]/session', params: { id: exam.assignmentId } })}
+        />
+      );
+    case 'view_result':
+      return (
+        <Button
+          label="View result"
+          variant="secondary"
+          trailing
+          onPress={() => router.push({ pathname: '/report/[id]', params: { id: exam.sessionId, from: 'assign' } })}
+        />
+      );
+    case 'wait':
+      return <Button label={`Opens ${formatDate(exam.startDate)}`} variant="secondary" disabled onPress={() => {}} />;
+    case 'closed':
+      return <Button label="Test closed" variant="secondary" disabled onPress={() => {}} />;
+    case 'missed':
+      return <Button label="Missed" variant="secondary" disabled onPress={() => {}} />;
+  }
 }
 
-const SERIES_DOT: Record<SeriesState, string> = {
-  done: colors.text,
-  open: colors.accent,
-  upcoming: colors.neutral300,
-};
-
-const SERIES_STATE_LABEL: Record<SeriesState, string> = {
-  done: 'Completed',
-  open: 'Open now',
-  upcoming: 'Upcoming',
-};
-
-function SeriesGrid({ series }: { series: ProgressSeries }) {
-  const doneCount = series.items.filter((i) => i.state === 'done').length;
+function ExamCard({ exam, highlighted }: { exam: AssignedExam; highlighted: boolean }) {
   return (
-    <View style={seriesStyles.wrap}>
-      <View style={seriesStyles.header}>
-        <Text style={seriesStyles.title}>{series.title}</Text>
-        <Text style={typography.muted}>{`${doneCount} of ${series.items.length} done`}</Text>
-      </View>
-      <View style={seriesStyles.grid}>
-        {series.items.map((item) => (
-          <View key={item.id} style={seriesStyles.cell}>
-            <View style={seriesStyles.stateRow}>
-              <View style={[seriesStyles.dot, { backgroundColor: SERIES_DOT[item.state] }]} />
-              <Kicker>{SERIES_STATE_LABEL[item.state]}</Kicker>
+    <View style={[cardStyles.examCard, highlighted && cardStyles.examCardHighlighted]}>
+      <CoverImage uri={exam.coverImage} label="Card image" />
+      <View style={cardStyles.examBody}>
+        <View style={cardStyles.tags}>
+          <Tag label={TYPE_LABEL[exam.examType]} />
+          {exam.action === 'start' && <Tag label="Single attempt" tone="neutral" />}
+          {exam.action === 'resume' && <Tag label={exam.paused ? 'Paused' : 'In progress'} tone="neutral" />}
+        </View>
+        <Text style={cardStyles.examTitle}>{exam.title}</Text>
+        <View style={cardStyles.facts}>
+          {examFacts(exam).map(([label, value], i) => (
+            <View key={label} style={[cardStyles.fact, i > 0 && cardStyles.factDivided]}>
+              <Kicker>{label}</Kicker>
+              <Text style={cardStyles.factValue}>{value}</Text>
             </View>
-            <Text style={seriesStyles.short}>{item.short}</Text>
-            <Text style={typography.muted}>{item.meta}</Text>
-          </View>
-        ))}
+          ))}
+        </View>
+        <ExamAction exam={exam} />
       </View>
     </View>
   );
 }
 
-function CompletedCard({ exam, isTablet }: { exam: CompletedExam; isTablet: boolean }) {
+function ResultCard({ result, isTablet }: { result: ResultSummary; isTablet: boolean }) {
   return (
-    <View style={[cardStyles.doneCard, isTablet && cardStyles.doneCardTablet]}>
-      <View style={cardStyles.doneTop}>
-        <View style={cardStyles.thumb}>
-          <Text style={[cardStyles.placeholderLabel, { fontSize: 9 }]}>{toUpperCaseEn('Image')}</Text>
-        </View>
-        <View style={cardStyles.doneInfo}>
-          <Tag label={exam.typeLabel} />
-          <Text style={cardStyles.doneTitle}>{exam.title}</Text>
-          <Text style={typography.muted}>{exam.completedLabel}</Text>
+    <View style={[cardStyles.resultCard, isTablet && cardStyles.resultCardTablet]}>
+      <View style={cardStyles.resultTop}>
+        <CoverImage uri={result.coverImage} label="Image" aspectRatio={1} style={cardStyles.thumb} />
+        <View style={cardStyles.resultInfo}>
+          <Tag label={TYPE_LABEL[result.examType]} />
+          <Text style={cardStyles.resultTitle}>{result.title}</Text>
+          <Text style={typography.muted}>{`Finished ${formatDate(result.finishedAt)}`}</Text>
         </View>
       </View>
-      <View style={cardStyles.doneFacts}>
-        <View style={cardStyles.doneFact}>
-          <Kicker>Level</Kicker>
+      <View style={cardStyles.resultLevel}>
+        <Kicker>Level</Kicker>
+        {result.noLevel ? (
+          <Text style={cardStyles.noLevel}>Level not determined</Text>
+        ) : (
           <View style={cardStyles.levelRow}>
-            <Text style={cardStyles.level}>{exam.level}</Text>
-            <Tag label={exam.status} tone="neutral" />
+            <Text style={cardStyles.level}>{result.cefrLevel}</Text>
+            {result.evaluating && <Tag label="Evaluating" tone="neutral" />}
           </View>
-        </View>
-        <View style={[cardStyles.doneFact, cardStyles.factDivided]}>
-          <Kicker>{exam.change ? 'Change' : 'Starting level'}</Kicker>
-          <Text style={cardStyles.change}>{exam.change ?? 'Baseline'}</Text>
-        </View>
+        )}
       </View>
-      <View style={cardStyles.doneAction}>
+      <View style={cardStyles.resultAction}>
         <Button
           label="View report"
           variant="secondary"
           trailing
-          onPress={() => router.push({ pathname: '/report/[id]', params: { id: exam.id, from: 'assign' } })}
+          onPress={() => router.push({ pathname: '/report/[id]', params: { id: result.sessionId, from: 'assign' } })}
         />
       </View>
     </View>
@@ -235,10 +288,32 @@ const createStyles = (isTablet: boolean) => {
     titleBlock: {
       gap: 12,
     },
+    titleRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-end',
+      justifyContent: 'space-between',
+      gap: 16,
+    },
     title: {
       fontFamily: fonts.extraBold,
       fontSize: 28,
       lineHeight: 32,
+      color: colors.text,
+    },
+    levelBox: {
+      alignItems: 'flex-end',
+      gap: 2,
+    },
+    level: {
+      fontFamily: fonts.extraBold,
+      fontSize: 22,
+      lineHeight: 26,
+      color: colors.accent,
+    },
+    levelEmpty: {
+      fontFamily: fonts.semiBold,
+      fontSize: 14,
+      lineHeight: 20,
       color: colors.text,
     },
     tabs: {
@@ -247,7 +322,25 @@ const createStyles = (isTablet: boolean) => {
       borderBottomWidth: 2,
       borderBottomColor: colors.divider,
     },
-    doneGrid: {
+    notice: {
+      maxWidth: 920,
+      gap: 4,
+      paddingLeft: 12,
+      borderLeftWidth: 4,
+      borderLeftColor: colors.accent,
+    },
+    noticeTitle: {
+      fontFamily: fonts.extraBold,
+      fontSize: 16,
+      color: colors.text,
+    },
+    noticeBody: {
+      fontFamily: fonts.regular,
+      fontSize: 14,
+      lineHeight: 20,
+      color: colors.neutral700,
+    },
+    grid: {
       flexDirection: 'row',
       flexWrap: 'wrap',
       gap: 16,
@@ -275,23 +368,16 @@ const tabStyles = StyleSheet.create({
 });
 
 const cardStyles = StyleSheet.create({
-  openCard: {
+  examCard: {
+    width: '100%',
     maxWidth: 440,
     backgroundColor: colors.surface,
   },
-  cardImage: {
-    aspectRatio: 16 / 9,
-    backgroundColor: colors.neutral300,
-    justifyContent: 'flex-end',
-    padding: 12,
+  examCardHighlighted: {
+    borderTopWidth: 4,
+    borderTopColor: colors.accent,
   },
-  placeholderLabel: {
-    fontFamily: fonts.regular,
-    fontSize: 11,
-    letterSpacing: 0.9,
-    color: colors.neutral800,
-  },
-  openBody: {
+  examBody: {
     padding: 16,
     gap: 12,
   },
@@ -300,7 +386,7 @@ const cardStyles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: 8,
   },
-  openTitle: {
+  examTitle: {
     fontFamily: fonts.extraBold,
     fontSize: 20,
     lineHeight: 24,
@@ -326,16 +412,16 @@ const cardStyles = StyleSheet.create({
     fontSize: 14,
     color: colors.text,
   },
-  doneCard: {
+  resultCard: {
     width: '100%',
     backgroundColor: colors.surface,
   },
-  doneCardTablet: {
+  resultCardTablet: {
     flexBasis: 320,
     flexGrow: 1,
     width: undefined,
   },
-  doneTop: {
+  resultTop: {
     flexDirection: 'row',
     gap: 12,
     padding: 16,
@@ -343,33 +429,25 @@ const cardStyles = StyleSheet.create({
   },
   thumb: {
     width: 72,
-    height: 72,
-    backgroundColor: colors.neutral300,
-    justifyContent: 'flex-end',
-    padding: 6,
   },
-  doneInfo: {
+  resultInfo: {
     flex: 1,
     minWidth: 0,
     gap: 6,
   },
-  doneTitle: {
+  resultTitle: {
     fontFamily: fonts.extraBold,
     fontSize: 18,
     lineHeight: 22,
     color: colors.text,
   },
-  doneFacts: {
-    flexDirection: 'row',
+  resultLevel: {
     marginHorizontal: 16,
     marginTop: 16,
-    borderTopWidth: 2,
-    borderTopColor: colors.divider,
-  },
-  doneFact: {
-    flex: 1,
     paddingVertical: 12,
     gap: 4,
+    borderTopWidth: 2,
+    borderTopColor: colors.divider,
   },
   levelRow: {
     flexDirection: 'row',
@@ -382,66 +460,16 @@ const cardStyles = StyleSheet.create({
     lineHeight: 34,
     color: colors.accent,
   },
-  change: {
+  noLevel: {
     fontFamily: fonts.extraBold,
     fontSize: 18,
     lineHeight: 22,
     paddingTop: 6,
     color: colors.text,
   },
-  doneAction: {
+  resultAction: {
     paddingHorizontal: 16,
     paddingBottom: 16,
-  },
-});
-
-const seriesStyles = StyleSheet.create({
-  wrap: {
-    maxWidth: 920,
-    gap: 10,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'baseline',
-    gap: 12,
-  },
-  title: {
-    flexShrink: 1,
-    fontFamily: fonts.extraBold,
-    fontSize: 18,
-    color: colors.text,
-  },
-  // 2px boşluklar arkadaki divider rengini göstererek ızgara çizgisi oluşturur
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 2,
-    backgroundColor: colors.divider,
-    borderTopWidth: 2,
-    borderTopColor: colors.divider,
-  },
-  cell: {
-    flexGrow: 1,
-    flexBasis: 150,
-    backgroundColor: colors.bg,
-    padding: 12,
-    gap: 4,
-  },
-  stateRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  dot: {
-    width: 10,
-    height: 10,
-  },
-  short: {
-    fontFamily: fonts.semiBold,
-    fontSize: 15,
-    lineHeight: 20,
-    color: colors.text,
   },
 });
 

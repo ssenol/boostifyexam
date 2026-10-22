@@ -96,6 +96,10 @@ Sınav **başlatılmaz**: her deneme gerçek ve geri alınamaz.
 - Aşağı çekip yenileme, sınavdan dönünce yenileme, boş durumlar.
 - Progress serisi ızgarası ve ilgili mock/tipler kaldırılır.
 
+> **Aşama 2 tamamlandı (2026-10-22).** Demo öğrenciyle telefonda denendi: seviye satırı, Tests / Results
+> sekmeleri, placement notu, vurgulu kapak resimli kart, boş sonuç listesi, aşağı çekip yenileme. Diğer kart
+> durumları "Bekleyen testler"de. Mock'taki `getAssignments` ve progress serisi kaldırıldı.
+
 **Aşama 3: Sınav girişi (Intro).**
 - `instructionsHtml` (WebView), `timeLimitMinutes`, kurallar, "3 kez çıkarsan sınavın biter" uyarısı.
 - `parts`'a göre ses testi (sunucuya gitmez) ve mikrofon izni (`parts.speaking`).
@@ -132,6 +136,52 @@ Sınav **başlatılmaz**: her deneme gerçek ve geri alınamaz.
 **Aşama 7: Temizlik ve yayın öncesi.**
 - `src/mocks/examServer.ts` ve kullanılmayan tipler kaldırılır. Notlar ve CLAUDE.md güncellenir.
 - Rehberin "Yayın öncesi kontrol listesi" gerçek iPhone ve Android'de tamamlanır.
+
+## Bekleyen testler
+
+Kodu yazılmış ama demo hesabın o anki durumu yüzünden henüz denenemeyen durumlar. Denendikçe işaretlenir.
+"Nasıl oluşur" sütunundaki atamalar kullanıcı tarafından web panelinden yapılır.
+
+### Aşama 1: giriş ve oturum
+
+| ✓ | Durum | Beklenen | Nasıl oluşur |
+|---|---|---|---|
+| ☐ | Access token'ın doğal olarak dolması (2 saat) | Sessiz yenileme, kullanıcı bir şey görmez | Uygulamayı 2 saatten uzun açık bırakıp bir istek yapmak |
+| ☐ | Yenileme sırasında ağ yok | Oturum korunur, çıkış olmaz | Token dolmuşken uçak modu |
+| ☐ | `429 too_many_requests` | "Too many attempts. Wait a moment and try again." | 10 dk içinde 10'dan fazla hatalı giriş |
+| ☐ | `401 account_disabled` | Çıkış, login'de "Your account is not active…" | Pasif/silinmiş bir test hesabı |
+
+### Aşama 2: sınav ve sonuç listeleri
+
+| ✓ | Durum | Beklenen | Nasıl oluşur |
+|---|---|---|---|
+| ☐ | `action: resume` (duraklatılmış) | "Paused" etiketi, "Time left" kalan dakika, "Continue" doğrudan sınavı açar | Sınavı başlatıp "Sınavdan çık" |
+| ☐ | `action: resume` (duraklatılmamış) | "In progress" etiketi | Sınav açıkken uygulamayı öldürüp listeye dönmek |
+| ☐ | `action: view_result` | Kartta seviye, "View result" → rapor | Bir sınavı bitirmek |
+| ☐ | `action: wait` | Pasif "Opens 13 Oct" düğmesi, "Opens" tarihi | Başlangıcı ileri tarihli atama |
+| ☐ | `action: closed` | Pasif "Test closed" | Başlanmış ama bitiş tarihi geçmiş atama |
+| ☐ | `action: missed` | Pasif "Missed" | Başlanmadan bitiş tarihi geçmiş atama |
+| ☐ | Progress sınavı kartı | "Progress test" etiketi | Progress ataması |
+| ☐ | `mustTakePlacement` + birden çok sınav | Açık placement en üstte ve vurgulu, diğerleri altta | Placement + progress birlikte atanmış öğrenci |
+| ☐ | `mustTakePlacement: false` | "Take your placement test first" notu yok, vurgu yok | Placement'ı bitirmek |
+| ☐ | Ölçülmüş seviye (`level`) | Üstte "Your level: B1" vb., Profil'de seviye ve tarih | Placement'ı bitirmek |
+| ☐ | Boş `coverImage` / yüklenemeyen resim | Gri yer tutucu | Kapaksız atama (kapak zorunlu, olmayabilir) |
+| ☐ | Hiç atama yok | "No tests assigned to you" | Ataması olmayan öğrenci |
+| ☐ | Results kartı | Tarih, seviye, "View report" | Bir sınavı bitirmek |
+| ☐ | Results kartı, `evaluating: true` | "Evaluating" etiketi | Bitirdikten hemen sonra (~1 dk) |
+| ☐ | Results kartı, `noLevel: true` | "Level not determined" | 8'den az puanlanan cevapla bitirmek |
+
+### Tablet görünümü
+
+| ✓ | Durum | Beklenen | Nasıl oluşur |
+|---|---|---|---|
+| ☐ | Login, Profil, Assignments (Aşama 1–2) iPad'de | Tablet düzeni (padX 40, kart ızgarası, profil en fazla 560 genişlik) | `npm run ios:sim:ipad`, dikey ve yatay |
+| ☐ | Telefon ↔ tablet eşiği (744) | Pencere boyutu değişince düzen geçişi bozulmadan değişir | Xcode 27 Device Hub'da simülatör penceresini boyutlandırmak |
+
+### Bilinen geçici durumlar
+
+- Aşama 3'e kadar "Start" → Intro hata verir (Intro hâlâ sahte sunucuda, gerçek id'yi tanımaz).
+- Aşama 4'e kadar "Continue" → Session, Aşama 6'ya kadar "View result" / "View report" → Rapor sahte sunucuda.
 
 ## Test hesabı kuralları
 

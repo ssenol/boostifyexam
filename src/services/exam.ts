@@ -1,10 +1,27 @@
+import { API_ENDPOINTS, apiGet } from "../config/api";
 import * as mock from "../mocks/examServer";
+import type { AssignedExam, ExamList, ResultSummary } from "../types/exam";
 
-// Sınav servisi. Backend API'si gelene kadar sahte sunucuyu (src/mocks/examServer.ts) çağırır.
-// API gelince her metot `api` (src/config/api.ts) üzerinden ilgili endpoint'e bağlanır; ekranlar değişmez.
-// Beklenen davranış: .claude/notes/sinav-akisi-ve-api-sozlesmesi.md
+// Sınav servisi. Listeler mobil sınav API'sine bağlı; Intro, oturum ve rapor metotları henüz sahte sunucuyu
+// (src/mocks/examServer.ts) çağırıyor ve aşama aşama API'ye geçecek (.claude/notes/api-entegrasyon-plani.md).
 class ExamService {
-  getAssignments = mock.getAssignments;
+  // Sınav listesi: kartlardaki düğmeyi her sınavın action alanı belirler
+  getExams(): Promise<ExamList> {
+    return apiGet<ExamList>(API_ENDPOINTS.exams);
+  }
+
+  // Tek sınav kartı (derin bağlantı vb.). Atanmamışsa 404 not_found.
+  async getExam(assignmentId: string): Promise<AssignedExam> {
+    const data = await apiGet<{ exam: AssignedExam }>(API_ENDPOINTS.exam(assignmentId));
+    return data.exam;
+  }
+
+  // Biten sınavlar, en yeni en üstte
+  async getResults(): Promise<ResultSummary[]> {
+    const data = await apiGet<{ results: ResultSummary[] }>(API_ENDPOINTS.results);
+    return data.results;
+  }
+
   getExamDetail = mock.getExamDetail;
 
   // Oturum

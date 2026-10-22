@@ -63,7 +63,7 @@ app/
 │   └── login.tsx        # Giriş yapılmışsa "/"'a Redirect
 └── (main)/
     ├── _layout.tsx      # Auth koruması: giriş yoksa "/login"'e Redirect. Tab bar YOK, Stack.
-    ├── index.tsx        # Assignments (Open / Completed)
+    ├── index.tsx        # Assignments: Tests (GET /exams, düğmeyi action belirler) / Results (GET /results)
     ├── profile.tsx      # Profil (GET /me) + çıkış
     ├── exam/[id]/
     │   ├── index.tsx    # Intro: kurallar + cihaz kontrolü
