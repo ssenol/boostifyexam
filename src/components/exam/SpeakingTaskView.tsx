@@ -114,7 +114,7 @@ export default function SpeakingTaskView({
       recorder.record({ forDuration: maxSeconds });
       setStage('recording');
     } catch {
-      setError('The recording could not start. Check your microphone or report a technical problem.');
+      setError('The recording could not start. Check your microphone or report a microphone problem.');
     }
   };
 
@@ -133,7 +133,7 @@ export default function SpeakingTaskView({
     const uri = recorder.uri;
     if (!uri) {
       setStage('idle');
-      setError('The recording could not be saved. Report a technical problem if this happens again.');
+      setError('The recording could not be saved. Report a microphone problem if this happens again.');
       finishing.current = false;
       return;
     }
@@ -203,9 +203,9 @@ export default function SpeakingTaskView({
 
   const reportProblem = async () => {
     const ok = await confirm({
-      kicker: 'Technical problem',
+      kicker: 'Microphone problem',
       title: 'Your microphone doesn’t work?',
-      body: 'Your speaking task will be marked as a technical problem. It won’t count as 0, and your teacher will see it in your report.',
+      body: 'Your speaking task will be marked as a microphone problem and not measured. It won’t count as 0, and your teacher will see it in your report.',
       tone: 'warn',
       primaryLabel: 'Report a problem',
       secondaryLabel: 'Go back',
@@ -254,7 +254,7 @@ export default function SpeakingTaskView({
             <View style={styles.denied}>
               <Text style={styles.deniedTitle}>Microphone access is off</Text>
               <Text style={typography.muted}>
-                You can’t record without the microphone. Report a technical problem; your teacher will see it.
+                You can’t record without the microphone. Report a microphone problem; your teacher will see it.
               </Text>
             </View>
           ) : (
@@ -274,7 +274,7 @@ export default function SpeakingTaskView({
             </View>
           )}
           <View style={styles.secondary}>
-            <Button label="Report a technical problem" variant="secondary" size="compact" onPress={reportProblem} disabled={busy} />
+            <Button label="Report a microphone problem" variant="secondary" size="compact" onPress={reportProblem} disabled={busy} />
             <Button label="Skip this task" variant="ghost" size="compact" onPress={skip} disabled={busy} />
           </View>
         </View>

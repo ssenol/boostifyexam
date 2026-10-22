@@ -12,7 +12,7 @@ import useBottomSpacing from '../hooks/useBottomSpacing';
 import useResponsive from '../hooks/useResponsive';
 import examService from '../services/exam';
 import { theme } from '../theme';
-import { EXAM_TYPE_LABEL, type AssignedExam, type ResultSummary } from '../types/exam';
+import { EXAM_TYPE_TAG, type AssignedExam, type ResultSummary } from '../types/exam';
 import { formatDate, formatDateTime } from '../utils/format';
 
 const { colors, fonts, typography } = theme;
@@ -207,7 +207,7 @@ function ExamCard({ exam, highlighted }: { exam: AssignedExam; highlighted: bool
       <CoverImage uri={exam.coverImage} label="Card image" />
       <View style={cardStyles.examBody}>
         <View style={cardStyles.tags}>
-          <Tag label={EXAM_TYPE_LABEL[exam.examType]} />
+          <Tag label={EXAM_TYPE_TAG[exam.examType]} />
           {exam.action === 'start' && <Tag label="Single attempt" tone="neutral" />}
           {exam.action === 'resume' && <Tag label={exam.paused ? 'Paused' : 'In progress'} tone="neutral" />}
         </View>
@@ -232,7 +232,7 @@ function ResultCard({ result, isTablet }: { result: ResultSummary; isTablet: boo
       <View style={cardStyles.resultTop}>
         <CoverImage uri={result.coverImage} label="Image" aspectRatio={1} style={cardStyles.thumb} />
         <View style={cardStyles.resultInfo}>
-          <Tag label={EXAM_TYPE_LABEL[result.examType]} />
+          <Tag label={EXAM_TYPE_TAG[result.examType]} />
           <Text style={cardStyles.resultTitle}>{result.title}</Text>
           <Text style={typography.muted}>{`Finished ${formatDate(result.finishedAt)}`}</Text>
         </View>

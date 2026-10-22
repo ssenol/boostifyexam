@@ -69,7 +69,6 @@ export default function ReportScreen({ sessionId, from }: ReportScreenProps) {
             isTablet={isTablet}
             onOpenCertificate={() => router.push({ pathname: '/certificate/[id]', params: { id: sessionId } })}
           />
-          <Text style={styles.footnote}>Questions and answers are not shown in reports.</Text>
         </View>
       </ScrollView>
     </View>
@@ -95,15 +94,6 @@ const createStyles = (isTablet: boolean) => {
     inner: {
       maxWidth: 1040,
       gap: 32,
-    },
-    footnote: {
-      fontFamily: fonts.regular,
-      fontSize: 13,
-      lineHeight: 20,
-      color: colors.neutral700,
-      borderTopWidth: 2,
-      borderTopColor: colors.divider,
-      paddingTop: 12,
     },
   });
 };

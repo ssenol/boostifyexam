@@ -30,9 +30,7 @@ export function instructionLines(text: string): string[] {
     .filter(Boolean);
 }
 
-// 918 → "15 min 18 s"
+// 918 → "16 min": web sitesindeki gibi dakikaya yukarı yuvarlanır
 export function formatDuration(seconds: number): string {
-  const m = Math.floor(seconds / 60);
-  const s = Math.round(seconds % 60);
-  return m ? `${m} min${s ? ` ${s} s` : ''}` : `${s} s`;
+  return `${Math.ceil(Math.max(0, seconds) / 60)} min`;
 }

@@ -5,16 +5,19 @@ const { colors, fonts } = theme;
 
 interface TagProps {
   label: string;
-  tone?: 'accent' | 'neutral';
+  // level: CEFR seviyesi (turuncu); koyu ton, küçük yazıda okunurluk için
+  tone?: 'accent' | 'neutral' | 'warn' | 'level';
   style?: StyleProp<ViewStyle>;
 }
 
-// Prototipteki .tag-accent / .tag-neutral
+const BACKGROUND = { accent: colors.accent, neutral: colors.neutral800, warn: colors.warn700, level: colors.primaryPressed } as const;
+
+// Prototipteki .tag-accent / .tag-neutral, renkleri ters: açık zeminler kartların gri zemininde kayboluyordu
+// (kullanıcı kararı, 2026-10-22). Koyu zemin, açık yazı.
 export default function Tag({ label, tone = 'accent', style }: TagProps) {
-  const isAccent = tone === 'accent';
   return (
-    <View style={[styles.tag, { backgroundColor: isAccent ? colors.accent100 : colors.neutral100 }, style]}>
-      <Text style={[styles.label, { color: isAccent ? colors.accent800 : colors.neutral800 }]} numberOfLines={1}>
+    <View style={[styles.tag, { backgroundColor: BACKGROUND[tone] }, style]}>
+      <Text style={[styles.label, { color: tone === 'accent' ? colors.accent100 : colors.neutral100 }]} numberOfLines={1}>
         {label}
       </Text>
     </View>

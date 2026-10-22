@@ -12,6 +12,12 @@ export const EXAM_TYPE_LABEL: Record<ExamKind, string> = {
   progress: 'Progress test',
 };
 
+// Kartlardaki etiket (webdeki gibi kısa)
+export const EXAM_TYPE_TAG: Record<ExamKind, string> = {
+  placement: 'Placement',
+  progress: 'Progress',
+};
+
 // --- Sınav ve sonuç listeleri (GET /exams, GET /results) ---------------------------------------------
 
 // Kartta hangi düğmenin gösterileceğini sunucu söyler; uygulama tarih veya durum hesabı yapmaz
@@ -242,8 +248,11 @@ export interface ExamResultData {
   // Seviye verilmedi ("yeterli cevap yok")
   noEvidence: boolean;
   insufficientEvidence: boolean;
+  // Seviye için gereken en az puanlanan cevap (8)
+  minAnswersForLevel?: number | null;
   // 0–100 ölçek puanı
   scaleScore: number | null;
+  // Ölçümün kesinliği: medium = "Fairly precise" (web)
   confidence: string;
   skills: Partial<Record<Skill, SkillScore>>;
   productive: Partial<Record<'writing' | 'speaking', ProductiveScore>>;
@@ -283,6 +292,8 @@ export interface ProductiveReport {
   feedback: ProductiveFeedback;
   technical: boolean;
   teacherFeedback: string;
+  // Genel seviyedeki ağırlık (0.125 = %12.5)
+  weight: number | null;
 }
 
 export interface Proctoring {
@@ -305,6 +316,10 @@ export interface ResultReport {
   startedAt: string;
   finishedAt: string;
   durationSec: number;
+  // Uygulamadan çıkma (arka plana alma) sayısı
+  leftPageCount: number;
+  // Duraklatma sayısı: "Pause and leave" + heartbeat kesilince sunucunun duraklatması. Webde "Left the test".
+  pauseCount: number;
   stopReason: string;
   result: ExamResultData;
   productive: ProductiveReport[];

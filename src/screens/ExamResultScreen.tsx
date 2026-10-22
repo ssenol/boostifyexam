@@ -12,6 +12,7 @@ import useResponsive from '../hooks/useResponsive';
 import examService from '../services/exam';
 import { theme } from '../theme';
 import { EXAM_TYPE_LABEL } from '../types/exam';
+import { resultNotes } from '../utils/resultNotes';
 
 const { colors, fonts, typography } = theme;
 
@@ -43,7 +44,7 @@ export default function ExamResultScreen({ sessionId }: ExamResultScreenProps) {
 
   const result = state.result;
   const noLevel = !result || result.noEvidence || result.insufficientEvidence || !result.cefrLevel;
-  const endedByRules = !!state.guard.endedBy;
+  const notes = resultNotes(result, { timeUp: state.status === 'expired', endedByRules: !!state.guard.endedBy });
 
   return (
     <ScrollView
@@ -53,18 +54,9 @@ export default function ExamResultScreen({ sessionId }: ExamResultScreenProps) {
       <View style={styles.columns}>
         <View style={styles.column}>
           <Kicker accent>{`${EXAM_TYPE_LABEL[state.examType]} · Completed`}</Kicker>
-          {endedByRules && (
-            <View style={styles.rules}>
-              <Text style={styles.rulesTitle}>Your test was ended because of the test rules.</Text>
-              <Text style={styles.note}>The answers you gave will be scored.</Text>
-            </View>
-          )}
           <Text style={styles.levelLabel}>Your level</Text>
           {noLevel ? (
-            <>
-              <Text style={styles.noLevel}>Not determined</Text>
-              <Text style={styles.note}>There weren’t enough answers to set your level.</Text>
-            </>
+            <Text style={styles.noLevel}>Not determined</Text>
           ) : (
             <View style={styles.levelRow}>
               <Text style={styles.level}>{result.cefrLevel}</Text>
@@ -74,6 +66,11 @@ export default function ExamResultScreen({ sessionId }: ExamResultScreenProps) {
           {evaluating && !noLevel && (
             <Text style={styles.note}>Your writing and speaking are being scored. Your level may change.</Text>
           )}
+          {notes.map((note) => (
+            <View key={note} style={styles.notice}>
+              <Text style={styles.noticeText}>{note}</Text>
+            </View>
+          ))}
         </View>
 
         <View style={styles.column}>
@@ -134,17 +131,16 @@ const createStyles = (isTablet: boolean) => {
       flexBasis: 300,
       gap: 12,
     },
-    rules: {
-      gap: 4,
-      paddingLeft: 12,
-      borderLeftWidth: 4,
-      borderLeftColor: colors.warn,
+    // Webdeki bilgi kutuları (seviye verilmedi, süre bitti, kurallarla bitti)
+    notice: {
+      padding: 12,
+      backgroundColor: colors.warn100,
     },
-    rulesTitle: {
-      fontFamily: fonts.extraBold,
-      fontSize: 16,
-      lineHeight: 22,
-      color: colors.text,
+    noticeText: {
+      fontFamily: fonts.semiBold,
+      fontSize: 14,
+      lineHeight: 21,
+      color: colors.warn700,
     },
     levelLabel: {
       fontFamily: fonts.semiBold,

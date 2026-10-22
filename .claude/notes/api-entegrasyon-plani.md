@@ -278,6 +278,21 @@ kırmızı süre, süre dolunca sunucunun kapatması (`status: expired`, `stopRe
 sayılmıyor, sunucu kapatmayı kısa gecikmeyle yapıyor (sorun değil). Liste: tamamlanan sınav Tests'ten çıkarıldı
 (Results'ta), Placement 2 (`wait`) pasif "Opens …".
 
+### Rapor tasarımı web'le eşitlendi (2026-10-22)
+
+Web raporu (öğrenci görünümü) örnek alındı: "Overall level" + güven notu ("Fairly precise"; high / low karşılığı
+tahmin, doğrulanmadı), bilgi ızgarası (Scale score, Questions, Time in the test, Left the test = `pauseCount`, Started,
+Finished; boşsa gizli), beceri kartları (doğru oranı çubuğu, "7 of 16 correct", seviye turuncu etiket), "Worth working
+on", writing / speaking (ağırlık, "Task achievement", italik açıklama, Strengths / Next steps, "Microphone problem ·
+Not measured"), seviye verilmedi / süre bitti / kurallarla bitti kutuları (`resultNotes`, bitiş ekranıyla ortak).
+"Test rules" bölümü ve alt not kaldırıldı. Süre dakikaya yukarı yuvarlanır. Etiketler koyu zemin, açık yazı; kart
+etiketi "Placement" / "Progress".
+
+| ✓ | Durum | Beklenen | Nasıl oluşur |
+|---|---|---|---|
+| ☐ | Web'de gerçekten çözülmüş bir sınavın raporu web'le aynı | Seviye, beceriler, writing / speaking ayrıntıları, kriter adları, geri bildirim | Ekipten birinin hesabı |
+| ☐ | Güven notunun `high` / `low` karşılığı | Webdeki ifade | Farklı kesinlikte sonuç |
+
 ### Tablet görünümü
 
 | ✓ | Durum | Beklenen | Nasıl oluşur |
