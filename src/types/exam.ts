@@ -75,6 +75,153 @@ export interface ResultSummary {
   noLevel: boolean;
 }
 
+// --- Sınav oturumu (rehber: "Sınavı başlatma ve state nesnesi") -----------------------------------------
+// Sınav ekranının tek veri kaynağı: her istek güncel state'i döner, ekran her seferinde ona göre yeniden çizilir.
+
+export type Skill = 'language_use' | 'reading' | 'listening' | 'writing' | 'speaking';
+
+export const SKILL_LABEL: Record<Skill, string> = {
+  language_use: 'Language use',
+  reading: 'Reading',
+  listening: 'Listening',
+  writing: 'Writing',
+  speaking: 'Speaking',
+};
+
+// Çoktan seçmeli bölümlerin sabit sırası
+export const RECEPTIVE_SKILLS: Skill[] = ['language_use', 'reading', 'listening'];
+
+// receptive: çoktan seçmeli bölümler · productive: writing ve speaking · done: bitti
+export type SessionPhase = 'receptive' | 'productive' | 'done';
+
+// awaiting_evaluation: writing / speaking puanlanıyor
+export type AttemptStatus = 'in_progress' | 'awaiting_evaluation' | 'completed';
+
+export type ItemType = 'single_choice' | 'true_false' | 'writing_prompt' | 'speaking_prompt';
+
+export interface ItemOption {
+  // Sunucuya giden değer; ekrandaki harf değil
+  key: string;
+  text: string;
+  imageUrl: string;
+}
+
+// Okuma metni ya da dinleme kaydı. Aynı stimulus'a bağlı sorular arka arkaya gelir (id aynı kalır).
+export interface Stimulus {
+  id: string;
+  kind: 'passage' | 'audio';
+  title: string;
+  // kind = passage: okuma metni (\n\n paragraf aralığı); audio'da boş (transcript gelmez)
+  text: string;
+  audioUrl: string;
+  imageUrl: string;
+  maxPlays: number;
+  // Sadece dinlemede: POST audio/play anahtarı ve kalan hak (hak kayda aittir, soru başına yenilenmez)
+  audioKey?: string;
+  playsLeft?: number;
+}
+
+// Writing / speaking görevinin ayrıntıları (Aşama 5)
+export interface ProductiveSpec {
+  instructions: string;
+  // 0 = sınır yok
+  minWords: number;
+  maxWords: number;
+  responseSeconds: number;
+  maxResponseSeconds: number;
+}
+
+export interface SessionItem {
+  id: string;
+  skill: Skill;
+  itemType: ItemType;
+  // Boşluk ___ olarak gelir
+  stem: string;
+  // Geldiği sırayla gösterilir; sıra öğrenciye göre karıştırılmış olabilir
+  options: ItemOption[];
+  imageUrl: string;
+  audioUrl?: string;
+  audioMaxPlays?: number;
+  // Nadiren kayıt sorunun kendisine bağlıdır
+  audioKey?: string;
+  audioPlaysLeft?: number;
+  stimulus: Stimulus | null;
+  productive: ProductiveSpec | null;
+}
+
+export interface SessionProgress {
+  // Pilot (puanlanmayan) soruları da sayar; bölüm ilerlemesi için section.answered kullanılır
+  answered: number;
+  receptiveMax: number;
+  productiveDone: number;
+  productiveTotal: number;
+}
+
+// Sadece çoktan seçmeli kısımda
+export interface SectionProgress {
+  skill: Skill;
+  // 1'den başlar
+  index: number;
+  total: number;
+  answered: number;
+  // Sunucu ölçümü yeterli bulursa bölümü erken bitirebilir; kesin sayı değil
+  max: number;
+}
+
+export interface SessionGuard {
+  tabSwitchLimit: number;
+  tabSwitchCount: number;
+  inactivityWarnSeconds: number;
+  inactivityEndSeconds: number;
+  // Kurallarla bittiyse sebep
+  endedBy: string;
+}
+
+export interface SessionState {
+  sessionId: string;
+  assignmentId: string;
+  examType: ExamKind;
+  status: AttemptStatus;
+  phase: SessionPhase;
+  // Her cevapla aynen geri gönderilir; tekrar gönderilen cevabın iki kez sayılmasını engeller
+  step: number;
+  deadlineAt: string | null;
+  serverNow: string;
+  paused: boolean;
+  // null = süre yok
+  remainingSec: number | null;
+  timeLimitSec: number | null;
+  currentDraft: string;
+  progress: SessionProgress;
+  currentItem: SessionItem | null;
+  section: SectionProgress | null;
+  productiveSubmitted: boolean;
+  // Sadece phase = done (Aşama 6'da tiplenecek)
+  result: Record<string, unknown> | null;
+  guard: SessionGuard;
+}
+
+export type ExamEventType = 'monitored' | 'tabSwitch' | 'inactivityWarn' | 'inactivityEnd' | 'pasteBlocked';
+
+export type EventVerdictKind = 'none' | 'warn' | 'final' | 'terminate';
+
+export interface EventVerdict {
+  verdict: EventVerdictKind;
+  count: number;
+  limit: number;
+  endedBy: string;
+  // terminate'te phase = done olan state
+  state: SessionState | null;
+}
+
+export interface AudioPlay {
+  // 15 dk geçerli imzalı adres; saklanmaz
+  url: string;
+  playsLeft: number;
+}
+
+// --- Sahte sunucu tipleri (writing / speaking bileşenleri ve rapor; Aşama 5–6'da kaldırılacak) ------------
+
 // --- Sınav oturumu -------------------------------------------------------------------------------
 
 export interface Passage {

@@ -3,9 +3,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import useBottomSpacing from '../../hooks/useBottomSpacing';
 import type { SaveState } from '../../hooks/useExamSession';
 import { theme } from '../../theme';
-import type { SectionInfo, SectionKey } from '../../types/exam';
 import Button from '../Button';
-import { CloseIcon, LockIcon } from '../icons';
+import { CloseIcon } from '../icons';
 import Tag from '../Tag';
 import Kicker from '../Kicker';
 
@@ -18,38 +17,36 @@ export const LOW_TIME_SECONDS = 5 * 60;
 // Sağdaki içerik de aynı payla aşağı iner, hizalı kalır.
 export const TABLET_TOP_EXTRA = 20;
 
+export type StepState = 'done' | 'current' | 'todo';
+
+// Sınavın bölümleri: çoktan seçmeli bölümler + writing / speaking
+export interface ChromeStep {
+  key: string;
+  label: string;
+  state: StepState;
+  // Yan panelde sağdaki not ("Question 3", "Done")
+  meta: string;
+  // Mevcut bölümde ilerleme (0–1); bölüm erken bitebildiği için kesin sayı yerine çubuk
+  progress: number;
+}
+
 export interface ExamChromeProps {
   examTitle: string;
   skill: string;
   numberKicker: string; // "Question" | "Task"
-  numberValue: string; // "01" | "W1"
-  timeText: string;
+  numberValue: string; // "01" | "W"
+  // null = süre yok
+  timeText: string | null;
   timeLow: boolean;
-  sections: SectionInfo[];
-  currentSection: SectionKey;
-  // Çoktan seçmeli bölümünde kaçıncı soru (yan paneldeki "Question 3")
-  itemNumber: number;
+  steps: ChromeStep[];
   saveState: SaveState;
   onPause: () => void;
 }
-
-type StepState = 'done' | 'current' | 'todo';
-
-const stepStates = (sections: SectionInfo[], current: SectionKey) => {
-  const ci = sections.findIndex((s) => s.key === current);
-  return sections.map((s, i): StepState => (i < ci ? 'done' : i === ci ? 'current' : 'todo'));
-};
 
 const STEP_COLOR: Record<StepState, string> = {
   done: colors.text,
   current: colors.accent,
   todo: colors.neutral300,
-};
-
-const stepMeta = (section: SectionInfo, state: StepState, itemNumber: number) => {
-  if (section.key === 'choice') return state === 'current' ? `Question ${itemNumber}` : 'Done';
-  if (state === 'current') return 'Now';
-  return state === 'done' ? 'Done' : '1 task';
 };
 
 const CONNECTION: Record<SaveState, { color: string; label: string; short: string }> = {
@@ -61,7 +58,6 @@ const CONNECTION: Record<SaveState, { color: string; label: string; short: strin
 // Telefon: üstte iki satırlık başlık (Pause, sınav adı, süre / soru no, bölüm çubukları, bağlantı)
 export function ExamTopBar(props: ExamChromeProps) {
   const insets = useSafeAreaInsets();
-  const states = stepStates(props.sections, props.currentSection);
   const conn = CONNECTION[props.saveState];
 
   return (
@@ -80,10 +76,12 @@ export function ExamTopBar(props: ExamChromeProps) {
           <Text style={topStyles.examTitle} numberOfLines={1}>{props.examTitle}</Text>
           <Tag label={props.skill} style={topStyles.skillTag} />
         </View>
-        <View style={topStyles.timeCol}>
-          <Kicker style={topStyles.timeKicker}>Time left</Kicker>
-          <Text style={[topStyles.time, props.timeLow && topStyles.timeLow]}>{props.timeText}</Text>
-        </View>
+        {props.timeText != null && (
+          <View style={topStyles.timeCol}>
+            <Kicker style={topStyles.timeKicker}>Time left</Kicker>
+            <Text style={[topStyles.time, props.timeLow && topStyles.timeLow]}>{props.timeText}</Text>
+          </View>
+        )}
       </View>
       <View style={topStyles.row2}>
         <View style={topStyles.numberRow}>
@@ -91,8 +89,10 @@ export function ExamTopBar(props: ExamChromeProps) {
           <Text style={topStyles.number}>{props.numberValue}</Text>
         </View>
         <View style={topStyles.steps}>
-          {props.sections.map((s, i) => (
-            <View key={s.key} style={[topStyles.step, { flex: s.weight, backgroundColor: STEP_COLOR[states[i]] }]} />
+          {props.steps.map((s) => (
+            <View key={s.key} style={[topStyles.step, { backgroundColor: s.state === 'current' ? colors.neutral300 : STEP_COLOR[s.state] }]}>
+              {s.state === 'current' && <View style={[topStyles.stepFill, { width: `${Math.round(s.progress * 100)}%` }]} />}
+            </View>
           ))}
         </View>
         <View style={topStyles.conn}>
@@ -108,17 +108,12 @@ export function ExamTopBar(props: ExamChromeProps) {
 export function ExamSidePanel(props: ExamChromeProps) {
   const insets = useSafeAreaInsets();
   const bottom = useBottomSpacing();
-  const states = stepStates(props.sections, props.currentSection);
   const conn = CONNECTION[props.saveState];
 
   return (
     <View style={[sideStyles.panel, { paddingTop: Math.max(20, insets.top) + TABLET_TOP_EXTRA, paddingBottom: bottom(20) }]}>
       <View style={sideStyles.topRow}>
         <Button label="Pause" variant="secondary" size="compact" leading={<CloseIcon size={18} />} onPress={props.onPause} />
-        <View style={sideStyles.secure}>
-          <LockIcon />
-          <Text style={sideStyles.secureText}>Secure mode</Text>
-        </View>
       </View>
 
       <Text style={sideStyles.examTitle}>{props.examTitle}</Text>
@@ -129,18 +124,27 @@ export function ExamSidePanel(props: ExamChromeProps) {
         <Tag label={props.skill} style={sideStyles.skillTag} />
       </View>
 
-      <View style={sideStyles.timeBlock}>
-        <Kicker>Time left</Kicker>
-        <Text style={[sideStyles.time, props.timeLow && sideStyles.timeLow]}>{props.timeText}</Text>
-        {props.timeLow && <Text style={sideStyles.lowNote}>Last 5 minutes. Your answer submits at 00:00.</Text>}
-      </View>
+      {props.timeText != null && (
+        <View style={sideStyles.timeBlock}>
+          <Kicker>Time left</Kicker>
+          <Text style={[sideStyles.time, props.timeLow && sideStyles.timeLow]}>{props.timeText}</Text>
+          {props.timeLow && <Text style={sideStyles.lowNote}>Last 5 minutes. The test ends at 00:00.</Text>}
+        </View>
+      )}
 
       <View style={sideStyles.steps}>
-        {props.sections.map((s, i) => (
-          <View key={s.key} style={sideStyles.step}>
-            <View style={[sideStyles.stepDot, { backgroundColor: STEP_COLOR[states[i]] }]} />
-            <Text style={[sideStyles.stepLabel, states[i] === 'current' && sideStyles.stepLabelCurrent]}>{s.label}</Text>
-            <Text style={sideStyles.stepMeta}>{stepMeta(s, states[i], props.itemNumber)}</Text>
+        {props.steps.map((s) => (
+          <View key={s.key}>
+            <View style={sideStyles.step}>
+              <View style={[sideStyles.stepDot, { backgroundColor: STEP_COLOR[s.state] }]} />
+              <Text style={[sideStyles.stepLabel, s.state === 'current' && sideStyles.stepLabelCurrent]}>{s.label}</Text>
+              <Text style={sideStyles.stepMeta}>{s.meta}</Text>
+            </View>
+            {s.state === 'current' && s.progress > 0 && (
+              <View style={sideStyles.stepTrack}>
+                <View style={[sideStyles.stepFill, { width: `${Math.round(s.progress * 100)}%` }]} />
+              </View>
+            )}
           </View>
         ))}
       </View>
@@ -229,7 +233,12 @@ const topStyles = StyleSheet.create({
     gap: 3,
   },
   step: {
+    flex: 1,
     height: 6,
+  },
+  stepFill: {
+    height: 6,
+    backgroundColor: colors.accent,
   },
   conn: {
     flexDirection: 'row',
@@ -260,16 +269,6 @@ const sideStyles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: 8,
-  },
-  secure: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  secureText: {
-    fontFamily: fonts.regular,
-    fontSize: 12,
-    color: colors.neutral700,
   },
   examTitle: {
     marginTop: 28,
@@ -344,6 +343,16 @@ const sideStyles = StyleSheet.create({
     fontFamily: fonts.regular,
     fontSize: 12,
     color: colors.neutral700,
+  },
+  stepTrack: {
+    height: 4,
+    marginLeft: 22,
+    marginBottom: 6,
+    backgroundColor: colors.neutral300,
+  },
+  stepFill: {
+    height: 4,
+    backgroundColor: colors.accent,
   },
   conn: {
     marginTop: 'auto',

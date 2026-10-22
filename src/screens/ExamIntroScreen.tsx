@@ -61,8 +61,8 @@ const DESCRIPTION = {
 
 type SoundState = 'idle' | 'played' | 'heard';
 
-// Sınav girişi: yönerge, kurallar ve cihaz kontrolü. Sınavı burası başlatmaz; Start sınav ekranını açar,
-// deneme orada POST /exams/:id/start ile oluşturulur.
+// Sınav girişi: yönerge, kurallar ve cihaz kontrolü. Start sınav ekranını açar; deneme orada
+// POST /exams/:id/start ile oluşturulur (geri alınamaz).
 export default function ExamIntroScreen({ assignmentId }: ExamIntroScreenProps) {
   const bottom = useBottomSpacing();
   const { isTablet } = useResponsive();
@@ -101,7 +101,8 @@ export default function ExamIntroScreen({ assignmentId }: ExamIntroScreenProps) 
   const checksDone = soundDone && micDone;
   const canStart = exam.action === 'start' || exam.action === 'resume';
 
-  const start = () => router.replace({ pathname: '/exam/[id]/session', params: { id: exam.assignmentId } });
+  const start = () =>
+    router.replace({ pathname: '/exam/[id]/session', params: { id: exam.assignmentId, title: exam.title } });
 
   const pending = [!soundDone && 'headphones', !micDone && 'microphone'].filter(Boolean).join(' and ');
   const hint = !canStart

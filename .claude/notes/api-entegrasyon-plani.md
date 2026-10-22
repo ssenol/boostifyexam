@@ -134,6 +134,15 @@ Sınav **başlatılmaz**: her deneme gerçek ve geri alınamaz.
 - Dinleme: `audio/play` → çal (`expo-audio`). Hak düğmede görünür, ileri sarma yok, cevap gönderilince durur.
 - Ağ hatasında aynı gövdeyle tekrar gönderilir, çift dokunma engellenir.
 
+> **Aşama 4 tamamlandı (2026-10-22).** `useExamSession` sunucu state'ine göre yeniden yazıldı (sıralı istekler, ağ
+> hatasında aynı gövdeyle tekrar, 15 sn heartbeat, `remainingSec` geri sayımı, boş `currentItem`'da 1,5 sn sonra
+> yenileme, aynı sınav için tek `start` isteği). `useExamGuard`: sadece `background` sayılır (≥ 0,6 sn) → `tabSwitch`,
+> kararı sunucu verir; hareketsizlik `inactivityWarn` / `inactivityEnd`; ekran bölme tespiti kaldırıldı (API'de olay
+> türü yok). Soru (`ChoiceQuestion`, resimli soru/şık: `RemoteImage`), okuma (`ReadingPassage`, kaydırma yeri
+> korunur), dinleme (`ListeningPlayer`, `expo-audio`, `audio/play`), bölüm geçişi (`SectionIntro`), üst çubuk / yan
+> panel bölüm ilerlemesi. "Pause and leave" → `pause`; Continue doğrudan sınavı açar (`ResumeView` kaldırıldı).
+> Writing / speaking bu aşamada yer tutucu.
+
 **Aşama 5: Writing ve speaking.**
 - Writing: `currentDraft` ile açılır, taslak heartbeat'teki `draftText` ile gider, kelime sayacı yalnızca uyarı verir.
   Yapıştırma engellenir ve `pasteBlocked` olayı gönderilir. Teslim ve boş geçiş (`skipped`) onay ister.
@@ -196,6 +205,26 @@ Kodu yazılmış ama demo hesabın o anki durumu yüzünden henüz denenemeyen d
 | ☐ | Intro'da kulaklıkla ses testi | Ses kulaklıktan gelir, telefon sessizdeyken de çalar | Fiziksel cihaz, sessiz mod |
 | ☐ | `parts` bölümleri kapalı sınav | Kapalı bölümün cihaz kontrolü ve kuralı görünmez | Listening / speaking'siz atama |
 | ☐ | Intro'da linkli yönerge | Link tarayıcıda açılır | `instructionsHtml` içinde link |
+
+### Aşama 4: sınav ekranı (çoktan seçmeli)
+
+Demo öğrencinin placement denemesi başlatıldı (2026-10-22), iPhone simülatöründe writing'e kadar geldi ve orada
+"Pause and leave" ile bırakıldı. Aşama 5 aynı denemeyle devam eder.
+
+| ✓ | Durum | Beklenen | Nasıl oluşur |
+|---|---|---|---|
+| ✓ | Başlatma, bölüm geçişleri, cevap, süre, Pause / Continue, 1. çıkış uyarısı, reading, listening | — | iPhone simülatörü |
+| ☐ | iPad: yan panel, yatayda yan okuma metni, dikeyde sekmeler | Tablet düzeni | `npm run ios:sim:ipad` |
+| ☐ | Cihaz değiştirme | iPhone'da "Pause and leave" → iPad'de Continue aynı yerden | İki simülatör, aynı hesap |
+| ☐ | Web'de başlayıp uygulamada bitirme | Aynı deneme açılır; `guard.tabSwitchCount` webdeki çıkışları da içerir | Web panelinden başlatılan sınav |
+| ☐ | 2. çıkış | "Last warning" penceresi | Yeni atama |
+| ☐ | 3. çıkış | Sınav kurallarla biter, bitiş ekranı | Yeni atama |
+| ☐ | Hareketsizlik 5 dk / 10 dk | "Are you still there?" / sınav biter | Yeni atama, ekrana dokunmadan beklemek |
+| ☐ | Süre biter | Sunucu kapatır, writing taslağı teslim edilir, bitiş ekranı | Kısa süreli atama |
+| ☐ | Uçak modunda cevap | "Offline" göstergesi, otomatik tekrar; geri gelince aynı soru iki kez sayılmaz | Cevap gönderirken ağı kesmek |
+| ☐ | Resimli soru / resimli şık / true_false | Görsel, yüklenemezse "Try again" | Bu tür soru gelirse |
+| ☐ | Uygulama arka plandayken dinleme | Çalma durur, dönünce "Continue playing" (hak harcamaz) | Listening sırasında çıkmak (çıkış sayılır!) |
+| ☐ | Uzun okuma metninde kaydırma yeri | Aynı metnin sonraki sorusunda yer korunur | Uzun metin |
 
 ### Tablet görünümü
 

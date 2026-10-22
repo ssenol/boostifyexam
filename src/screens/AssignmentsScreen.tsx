@@ -178,7 +178,7 @@ function ExamAction({ exam }: { exam: AssignedExam }) {
         <Button
           label="Continue"
           trailing
-          onPress={() => router.push({ pathname: '/exam/[id]/session', params: { id: exam.assignmentId } })}
+          onPress={() => router.push({ pathname: '/exam/[id]/session', params: { id: exam.assignmentId, title: exam.title } })}
         />
       );
     case 'view_result':

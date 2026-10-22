@@ -86,12 +86,19 @@ gönderilir (beklenmez) ve tokenlar her durumda silinir. Kullanıcıya ait yeni 
 
 ### Sınav akışı
 
-- **Sahte sunucu:** API henüz yok. `src/services/exam.ts` → `src/mocks/examServer.ts`. Ekranlar sadece servisi çağırır; API gelince yalnızca servis değişir. Tipler `src/types/exam.ts`.
-- **Sunucu otoritesi:** Süre, soru sırası, dinleme hakkı ve olaylar sunucuda. İstemci kalan süreyi sadece gösterim için sayar. Sözleşme: `.claude/notes/sinav-akisi-ve-api-sozlesmesi.md`.
-- **`useExamSession`:** Sunucunun son görüntüsünü (snapshot) tutar. İstekleri sırayla gönderir, kalan süreyi sayar, bağlantı durumunu (`saveState`) tutar.
-- **`useExamGuard`:** Ayrılma (AppState, Android blur), ekran bölme ve Android geri tuşu tespiti. Ayrılınca pause + olay kaydı; dönünce güvenlik uyarısı.
-- **Ekran bileşenleri:** `ExamSessionScreen` + `src/components/exam/*`. Telefonda `ExamTopBar`, tablette 300px `ExamSidePanel`. Okuma metni tablette yan panelde, telefonda Text/Question sekmeleriyle. Diğer parçalar: overlay'ler (`Dialog`), `Watermark`, `ResumeView`.
-- **Simüle edilenler:** Ses çalma, kayıt, cihaz kontrolü, ekran görüntüsü engeli ve görseller henüz simüle; native paket gerekiyor (bkz. not).
+- **Sunucu otoritesi:** Sınavın mantığı tamamen sunucuda (rehber). Ekranın tek veri kaynağı `SessionState`
+  (`src/types/exam.ts`): her istek güncel state'i döner, ekran onu çizer. Uygulama soru sırası, bölüm geçişi, puan
+  ya da süre hesaplamaz; kalan süreyi yalnızca gösterim için sayar.
+- **`useExamSession`:** `start` (aynı sınav için tek istek), sıralı istek kuyruğu, ağ hatasında aynı gövdeyle tekrar
+  (`step` ikinci kaydı engeller), 15 sn heartbeat (yanıtı yalnızca `phase = done` ise uygulanır), `pause`,
+  `playAudio`, `sendEvent`, bağlantı durumu (`saveState`).
+- **`useExamGuard`:** Sadece `background` → dönüşte `tabSwitch` (≥ 0,6 sn); kararı (`warn` / `final` / `terminate`)
+  sunucu verir. Hareketsizlik `inactivityWarn` / `inactivityEnd` (dinleme çalarken ve pencere açıkken işlemez).
+  Android geri tuşu "Pause" penceresini açar.
+- **Ekran:** `ExamSessionScreen` + `src/components/exam/*`: `phase` + `currentItem.itemType` ekranı seçer. Telefonda
+  `ExamTopBar`, tablette 300px `ExamSidePanel`. Okuma metni yatay tablette yan sütunda, telefonda / dikey tablette
+  Text / Question sekmeleriyle. `SectionIntro` bölüm geçişi, `ListeningPlayer` (`expo-audio`), `Watermark`.
+- **Henüz sahte sunucuda:** writing / speaking teslimi (Aşama 5), sonuç ve rapor (Aşama 6): `src/mocks/examServer.ts`.
 
 ### API katmanı
 

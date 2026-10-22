@@ -1,93 +1,83 @@
-import { useEffect, useLayoutEffect, useRef } from 'react';
-import { AppState, AppStateStatus, BackHandler, Dimensions, Platform, useWindowDimensions } from 'react-native';
-import type { SecurityEventType } from '../types/exam';
+import { useCallback, useEffect, useLayoutEffect, useRef } from 'react';
+import { AppState, BackHandler } from 'react-native';
 
-// Pencere ekranın bu oranından daralırsa (iPad Split View / Slide Over, Android çoklu pencere) çıkış sayılır
-const SPLIT_RATIO = 0.85;
-
-interface LeaveInfo {
-  type: SecurityEventType;
-  reason: string;
-}
+// Webdeki gibi bundan kısa ayrılışlar sayılmaz
+const MIN_AWAY_SECONDS = 0.6;
 
 interface ExamGuardOptions {
-  // Yalnızca sınav sürerken (oturum aktif) izlenir; duraklatılmış "Welcome back" ekranında izlenmez
+  // Sınav sürerken izlenir
   enabled: boolean;
-  // Öğrenci sınav ekranından ayrıldığı an (süre burada durdurulmalı)
-  onLeave: (info: LeaveInfo) => void;
-  // Geri döndüğünde; ayrılma süresince olan en "ağır" olay ile çağrılır (uyarı penceresi burada açılır)
-  onReturn: (info: LeaveInfo) => void;
+  // Uygulama arka plana alınıp geri gelindi; sunucuya tabSwitch olarak gider
+  onReturn: (secondsAway: number) => void;
   // Android donanım geri tuşu / geri hareketi
   onBackPress: () => void;
+  // Hareketsizlik sayacı işlesin mi (dinleme çalarken, kayıt alınırken, uyarı penceresi açıkken işlemez)
+  inactivityCounting: boolean;
+  inactivityWarnSeconds: number;
+  inactivityEndSeconds: number;
+  onInactivityWarn: () => void;
+  onInactivityEnd: () => void;
 }
 
-const BACKGROUND: LeaveInfo = { type: 'app_background', reason: 'You switched to another app.' };
-const INACTIVE: LeaveInfo = {
-  type: 'app_inactive',
-  reason: 'You opened the control centre, notifications or the app switcher.',
-};
-const SPLIT: LeaveInfo = { type: 'window_resized', reason: 'The screen was split or a side panel opened.' };
-
-// Kişisel cihazda uygulama kilitlenemez; bu hook ayrılmaları tespit eder (bkz. .claude/notes/mimari-ve-guvenlik-karari.md)
-export default function useExamGuard({ enabled, onLeave, onReturn, onBackPress }: ExamGuardOptions) {
-  const away = useRef<LeaveInfo | null>(null);
-  const handlers = useRef({ onLeave, onReturn, onBackPress });
-  const enabledRef = useRef(enabled);
-  // Abonelikler bir kez kurulur; güncel callback'ler ref üzerinden okunur
+// Kişisel cihazda uygulama kilitlenemez: ayrılma ve hareketsizlik tespit edilir, karar sunucuda verilir
+// (rehber: "Süre, duraklatma ve sınav kuralları").
+// - Sadece "background" sayılır. iOS'ta bildirim / kontrol merkezi ve uygulamanın kendi izin pencereleri yalnızca
+//   "inactive" yapar; bunlar sayılmaz.
+// - Ekrana dokunma, yazma ve kaydırma etkinliktir: ekran markActive'i çağırır.
+export default function useExamGuard(options: ExamGuardOptions) {
+  const handlers = useRef(options);
   useLayoutEffect(() => {
-    handlers.current = { onLeave, onReturn, onBackPress };
-    enabledRef.current = enabled;
+    handlers.current = options;
   });
 
-  // Uygulamadan ayrılma. iOS: önce "inactive" (kontrol merkezi, bildirim, uygulama değiştirici, gelen arama),
-  // devam ederse "background". Android'de bildirim paneli "blur" olarak gelir.
-  useEffect(() => {
-    const leave = (info: LeaveInfo) => {
-      if (!away.current) {
-        if (!enabledRef.current) return;
-        away.current = info;
-        handlers.current.onLeave(info);
-      } else if (info.type === 'app_background') {
-        // inactive → background: uygulamadan tamamen çıktı
-        away.current = info;
-      }
-    };
+  const leftAt = useRef<number | null>(null);
+  // Sayaç başlarken (effect) ayarlanır
+  const lastActive = useRef(0);
+  // Hareketsizlik aşaması; etkinlik olunca başa döner
+  const stage = useRef<'active' | 'warned' | 'ended'>('active');
 
-    const back = () => {
-      const info = away.current;
-      away.current = null;
-      if (info) handlers.current.onReturn(info);
-    };
-
-    const change = AppState.addEventListener('change', (next: AppStateStatus) => {
-      if (next === 'active') back();
-      else leave(next === 'background' ? BACKGROUND : INACTIVE);
-    });
-
-    const subs = [change];
-    if (Platform.OS === 'android') {
-      subs.push(AppState.addEventListener('blur', () => leave(INACTIVE)));
-      subs.push(AppState.addEventListener('focus', () => {
-        if (AppState.currentState === 'active') back();
-      }));
-    }
-    return () => subs.forEach((s) => s.remove());
+  const markActive = useCallback(() => {
+    lastActive.current = Date.now();
+    if (stage.current === 'warned') stage.current = 'active';
   }, []);
 
-  // Ekran bölme: pencere genişliği ekran genişliğinden belirgin şekilde küçükse. Ekran boyutu yönle birlikte döndüğü
-  // için cihazı çevirmek tetiklemez.
-  const { width } = useWindowDimensions();
-  const isSplit = width < Dimensions.get('screen').width * SPLIT_RATIO;
-  const wasSplit = useRef(isSplit);
   useEffect(() => {
-    if (isSplit && !wasSplit.current && enabledRef.current) {
-      handlers.current.onLeave(SPLIT);
-      handlers.current.onReturn(SPLIT);
-    }
-    wasSplit.current = isSplit;
-  }, [isSplit]);
+    const sub = AppState.addEventListener('change', (next) => {
+      if (next === 'background') {
+        if (handlers.current.enabled && leftAt.current == null) leftAt.current = Date.now();
+      } else if (next === 'active') {
+        const since = leftAt.current;
+        leftAt.current = null;
+        // Arka planda geçen süre hareketsizlik sayılmaz
+        lastActive.current = Date.now();
+        if (since == null) return;
+        const seconds = (Date.now() - since) / 1000;
+        if (seconds >= MIN_AWAY_SECONDS) handlers.current.onReturn(seconds);
+      }
+    });
+    return () => sub.remove();
+  }, []);
 
-  // Android geri tuşu sınavı kapatmaz; "Pause" penceresini açar
+  const { enabled, inactivityCounting, inactivityWarnSeconds, inactivityEndSeconds } = options;
+  useEffect(() => {
+    if (!enabled || !inactivityCounting) return;
+    // Sayaç durduktan sonra baştan başlar
+    lastActive.current = Date.now();
+    if (stage.current !== 'ended') stage.current = 'active';
+    const timer = setInterval(() => {
+      const idle = (Date.now() - lastActive.current) / 1000;
+      if (idle >= inactivityEndSeconds && stage.current !== 'ended') {
+        stage.current = 'ended';
+        handlers.current.onInactivityEnd();
+      } else if (idle >= inactivityWarnSeconds && stage.current === 'active') {
+        stage.current = 'warned';
+        handlers.current.onInactivityWarn();
+      }
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [enabled, inactivityCounting, inactivityWarnSeconds, inactivityEndSeconds]);
+
+  // Android geri tuşu sınavı kapatmaz; "Sınavdan çık" penceresini açar
   useEffect(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
       handlers.current.onBackPress();
@@ -95,4 +85,6 @@ export default function useExamGuard({ enabled, onLeave, onReturn, onBackPress }
     });
     return () => sub.remove();
   }, []);
+
+  return { markActive };
 }

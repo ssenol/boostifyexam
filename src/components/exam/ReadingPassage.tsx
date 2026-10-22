@@ -1,26 +1,34 @@
 import { StyleSheet, Text, View } from 'react-native';
 import { theme } from '../../theme';
-import type { Passage } from '../../types/exam';
+import type { Stimulus } from '../../types/exam';
 import Kicker from '../Kicker';
+import RemoteImage from '../RemoteImage';
 
 const { colors, fonts } = theme;
 
 interface ReadingPassageProps {
-  passage: Passage;
+  stimulus: Stimulus;
   // Tablette yan panelde "Reading text" üst başlığıyla gösterilir
   showKicker?: boolean;
 }
 
-// Paragraf numaralı okuma metni. Seçilip kopyalanamaz (Text varsayılan olarak selectable değil).
-export default function ReadingPassage({ passage, showKicker }: ReadingPassageProps) {
+// Okuma metni (stimulus.kind = passage). Metindeki boş satır (\n\n) paragraf aralığıdır; paragraflar numaralanır.
+// Seçilip kopyalanamaz (Text varsayılan olarak selectable değil).
+export default function ReadingPassage({ stimulus, showKicker }: ReadingPassageProps) {
+  const paragraphs = stimulus.text
+    .split(/\n\s*\n/)
+    .map((p) => p.trim())
+    .filter(Boolean);
+
   return (
     <View>
       {showKicker && <Kicker style={styles.kicker}>Reading text</Kicker>}
-      <Text style={[styles.title, showKicker && styles.titleLarge]}>{passage.title}</Text>
-      {passage.paragraphs.map((p) => (
-        <Text key={p.n} style={styles.paragraph}>
-          <Text style={styles.number}>{p.n}  </Text>
-          {p.text}
+      {!!stimulus.title && <Text style={[styles.title, showKicker && styles.titleLarge]}>{stimulus.title}</Text>}
+      {!!stimulus.imageUrl && <RemoteImage uri={stimulus.imageUrl} style={styles.image} />}
+      {paragraphs.map((text, i) => (
+        <Text key={i} style={styles.paragraph}>
+          {paragraphs.length > 1 && <Text style={styles.number}>{`${i + 1}  `}</Text>}
+          {text}
         </Text>
       ))}
     </View>
@@ -42,6 +50,10 @@ const styles = StyleSheet.create({
     fontSize: 24,
     lineHeight: 29,
     marginBottom: 16,
+  },
+  image: {
+    aspectRatio: 4 / 3,
+    marginBottom: 14,
   },
   paragraph: {
     fontFamily: fonts.regular,

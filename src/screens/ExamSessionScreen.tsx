@@ -1,18 +1,18 @@
-import { router } from 'expo-router';
+import { setAudioModeAsync } from 'expo-audio';
 import { useKeepAwake } from 'expo-keep-awake';
-import { useEffect, useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { router } from 'expo-router';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { NativeScrollEvent, NativeSyntheticEvent, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Button from '../components/Button';
 import Dialog, { DialogConfig } from '../components/Dialog';
 import ChoiceQuestion from '../components/exam/ChoiceQuestion';
-import { ExamChromeProps, ExamSidePanel, ExamTopBar, LOW_TIME_SECONDS, TABLET_TOP_EXTRA } from '../components/exam/ExamChrome';
+import { ChromeStep, ExamChromeProps, ExamSidePanel, ExamTopBar, LOW_TIME_SECONDS, TABLET_TOP_EXTRA } from '../components/exam/ExamChrome';
 import ListeningPlayer from '../components/exam/ListeningPlayer';
 import ReadingPassage from '../components/exam/ReadingPassage';
-import ResumeView from '../components/exam/ResumeView';
-import SpeakingTaskView, { useRecorder } from '../components/exam/SpeakingTaskView';
+import SectionIntro from '../components/exam/SectionIntro';
 import Watermark from '../components/exam/Watermark';
-import WritingTaskView from '../components/exam/WritingTaskView';
+import Kicker from '../components/Kicker';
 import ScreenHeader from '../components/ScreenHeader';
 import StateView from '../components/StateView';
 import Toast, { useToast } from '../components/Toast';
@@ -24,28 +24,32 @@ import useResponsive from '../hooks/useResponsive';
 import { useAppSelector } from '../store/hooks';
 import { selectCurrentUser } from '../store/slices/authSlice';
 import { theme } from '../theme';
-import type { ExamItem } from '../types/exam';
-import { getErrorMessage } from '../utils/errors';
-import { countWords, formatClock } from '../utils/format';
+import { EXAM_TYPE_LABEL, RECEPTIVE_SKILLS, SKILL_LABEL, type SessionState, type Skill } from '../types/exam';
+import { getErrorMessage, isApiError } from '../utils/errors';
+import { formatClock } from '../utils/format';
 
-const { colors, fonts } = theme;
+const { colors, fonts, typography } = theme;
 
-// exit: öğrenci Pause'a bastı · left: uygulamadan ayrıldı (güvenlik uyarısı) · submit/skip: görev gönderimi
-type Overlay = 'exit' | 'left' | 'submit' | 'skip';
+// exit: öğrenci Pause'a bastı · warn / final: uygulamadan çıkma uyarısı (sunucunun kararı) · inactive: hareketsizlik
+type Overlay = { kind: 'exit' } | { kind: 'warn'; count: number; limit: number } | { kind: 'final' } | { kind: 'inactive' };
 
 type Pane = 'text' | 'question';
 
 interface ExamSessionScreenProps {
-  examId: string;
+  assignmentId: string;
+  // Listeden / girişten gelir; yoksa sınav türü gösterilir
+  title?: string;
 }
 
-export default function ExamSessionScreen({ examId }: ExamSessionScreenProps) {
-  // Ekran kararırsa uygulama arka plana düşer ve çıkış sayılır; sınav boyunca açık kalır
+// Sınav ekranı. Tek veri kaynağı sunucunun state'i: hangi ekranın çizileceğine phase ve currentItem karar verir.
+export default function ExamSessionScreen({ assignmentId, title }: ExamSessionScreenProps) {
+  // Ekran kararırsa uygulama arka plana düşer ve "uygulamadan çıkma" sayılır; sınav boyunca açık kalır
   useKeepAwake();
 
-  const session = useExamSession(examId);
-  const { snapshot, remaining, busy } = session;
-  const item = snapshot?.item ?? null;
+  const session = useExamSession(assignmentId);
+  const { state, remaining, busy } = session;
+  const item = state?.currentItem ?? null;
+  const itemId = item?.id ?? null;
 
   const user = useAppSelector(selectCurrentUser);
   const insets = useSafeAreaInsets();
@@ -58,262 +62,278 @@ export default function ExamSessionScreen({ examId }: ExamSessionScreenProps) {
   const { ref: keyboardRef, inset: keyboardInset, onLayout: onKeyboardAreaLayout } = useKeyboardInset();
 
   const [overlay, setOverlay] = useState<Overlay | null>(null);
-  const [leftReason, setLeftReason] = useState('');
-  const [exits, setExits] = useState(0);
-
-  // Soruya bağlı yerel durumlar; soru değişince kendiliğinden sıfırlanır (itemId eşleşmezse yok sayılır)
+  const [leaving, setLeaving] = useState(false);
+  // Soruya bağlı yerel durumlar; soru değişince kendiliğinden geçersiz olur (itemId eşleşmezse yok sayılır)
   const [selection, setSelection] = useState<{ itemId: string; key: string } | null>(null);
   const [paneState, setPaneState] = useState<{ itemId: string; pane: Pane } | null>(null);
-  const [writing, setWriting] = useState<{ taskId: string; text: string } | null>(null);
-
-  const selectedKey = item && selection?.itemId === item.id ? selection.key : null;
-  const pane: Pane = item && paneState?.itemId === item.id ? paneState.pane : 'text';
-  const writingText = item?.kind === 'writing' ? (writing?.taskId === item.id ? writing.text : item.draft) : '';
-
-  const isActive = snapshot?.status === 'active';
-  // Pause / güvenlik penceresi açıkken ve oturum duraklatılmışken dinleme ve kayıt durur
-  const frozen = !isActive || overlay === 'exit' || overlay === 'left';
-  const recorder = useRecorder(item?.kind === 'speaking' ? item.maxSeconds : 60, frozen);
-
-  // Süre dolunca ya da son görev gönderilince sunucu oturumu kapatır
-  useEffect(() => {
-    if (snapshot?.status === 'finished') {
-      router.replace({ pathname: '/exam/[id]/result', params: { id: examId } });
-    }
-  }, [snapshot?.status, examId]);
+  // Metni okunmuş stimulus: aynı metnin sonraki sorularında telefonda doğrudan soru açılır
+  const [passageSeen, setPassageSeen] = useState<string | null>(null);
+  // Metnin kaydırma yeri (stimulus id → y): aynı metne bağlı sorular arasında korunur
+  const [passageOffsets, setPassageOffsets] = useState<Record<string, number>>({});
+  const passageScrollY = useRef(0);
+  // Geçiş ekranı gösterilmiş bölüm
+  const [introDone, setIntroDone] = useState<Skill | null>(null);
+  const [audioPlaying, setAudioPlaying] = useState(false);
+  // Soru ekranda ne zamandan beri (cevapla timeSec olarak gider)
+  const shownAt = useRef<{ itemId: string; at: number } | null>(null);
 
   const showError = (e: unknown) => toast.show(getErrorMessage(e));
 
-  const openExit = () => {
-    setOverlay('exit');
-    session.pause().catch(showError);
-  };
+  // Telefon sessizdeyken de dinleme kayıtları çalsın
+  useEffect(() => {
+    setAudioModeAsync({ playsInSilentMode: true }).catch(() => {});
+  }, []);
 
-  const backToTest = () => {
-    session
-      .resume()
-      .then(() => setOverlay(null))
-      .catch(showError);
-  };
+  useEffect(() => {
+    if (itemId) shownAt.current = { itemId, at: Date.now() };
+  }, [itemId]);
 
-  // Oturum zaten duraklatıldı. Pencere kapatılmaz: kapanırsa ekran kapanmadan "Welcome back" bir an görünür
-  const leaveToAssignments = () => router.dismissTo('/');
+  // Sınav ekranı ilk açıldığında bir kez "monitored"
+  const { sendEvent, refresh } = session;
+  const hasState = !!state;
+  const monitoredSent = useRef(false);
+  useEffect(() => {
+    if (!hasState || monitoredSent.current) return;
+    monitoredSent.current = true;
+    sendEvent('monitored').catch(() => {});
+  }, [hasState, sendEvent]);
 
-  useExamGuard({
-    enabled: isActive,
-    onLeave: (info) => {
-      // Süre ayrılır ayrılmaz durur; olay sunucuya kaydedilir
-      session.pause().catch(() => {});
-      session.logEvent({ type: info.type, detail: info.reason });
-    },
-    onReturn: (info) => {
-      if (info.type === 'app_background') session.logEvent({ type: info.type, detail: info.reason });
-      setExits((n) => n + 1);
-      setLeftReason(info.reason);
-      setOverlay('left');
+  // Süre bitti, son görev teslim edildi ya da kurallarla kapandı
+  const phase = state?.phase;
+  useEffect(() => {
+    if (phase === 'done') router.replace({ pathname: '/exam/[id]/result', params: { id: assignmentId } });
+  }, [phase, assignmentId]);
+
+  const running = !!state && state.phase !== 'done';
+  const { markActive } = useExamGuard({
+    enabled: running,
+    onReturn: (seconds) => {
+      sendEvent('tabSwitch', Math.round(seconds))
+        .then((v) => {
+          if (v?.verdict === 'warn') setOverlay({ kind: 'warn', count: v.count, limit: v.limit });
+          else if (v?.verdict === 'final') setOverlay({ kind: 'final' });
+          // terminate: dönen state phase = done, bitiş ekranına geçilir
+        })
+        .catch(() => {})
+        // Uzun süre arka planda kalınmış olabilir: ekranı tazele
+        .finally(() => refresh().catch(() => {}));
     },
     onBackPress: () => {
-      if (isActive && !overlay) openExit();
+      if (running && !overlay) setOverlay({ kind: 'exit' });
+    },
+    // Dinleme çalarken ve (hareketsizlik uyarısı dışında) bir pencere açıkken sayaç işlemez
+    inactivityCounting: !audioPlaying && (!overlay || overlay.kind === 'inactive'),
+    inactivityWarnSeconds: state?.guard.inactivityWarnSeconds ?? 300,
+    inactivityEndSeconds: state?.guard.inactivityEndSeconds ?? 600,
+    onInactivityWarn: () => {
+      sendEvent('inactivityWarn').catch(() => {});
+      setOverlay({ kind: 'inactive' });
+    },
+    onInactivityEnd: () => {
+      sendEvent('inactivityEnd').catch(() => {});
     },
   });
 
-  if (!snapshot || snapshot.status === 'finished') {
+  // "Sınavdan çık": saat durur. İstek ulaşmasa da çıkılır; sunucu heartbeat gelmeyince saati kendisi durdurur.
+  const pauseAndLeave = () => {
+    setLeaving(true);
+    session
+      .pause()
+      .catch(() => {})
+      .finally(() => router.dismissTo('/'));
+  };
+
+  if (!state || state.phase === 'done') {
     return (
       <View style={styles.root}>
-        {!snapshot && session.error && <ScreenHeader backLabel="Assignments" onBack={() => router.dismissTo('/')} />}
-        <StateView loading={session.loading || snapshot?.status === 'finished'} error={session.error} onRetry={session.reload} />
+        {!state && session.error && <ScreenHeader backLabel="Assignments" onBack={() => router.dismissTo('/')} />}
+        <StateView loading={session.loading || state?.phase === 'done'} error={session.error} onRetry={session.reload} />
       </View>
     );
   }
 
-  const timeText = formatClock(remaining);
-
-  // "Pause and leave" sonrası geri gelindi
-  if (snapshot.status === 'paused' && !overlay) {
-    return (
-      <>
-        <ResumeView
-          answeredCount={snapshot.answeredCount}
-          timeText={timeText}
-          onContinue={() => session.resume().catch(showError)}
-          onLeave={leaveToAssignments}
-          busy={session.saveState === 'saving'}
-          isTablet={isTablet}
-        />
-        <Toast message={toast.message} bottom={bottom(24) + 16} padX={padX} />
-      </>
-    );
-  }
-
+  // currentItem boş ama sınav bitmemiş: hook kısa süre sonra yeniden sorar
   if (!item) return <StateView loading />;
 
-  const words = countWords(writingText);
-  const footerPadding = bottom(12);
-  const footerLift = keyboardInset > 0 ? Math.max(0, keyboardInset - (footerPadding - 12)) : 0;
+  const section = state.phase === 'receptive' ? state.section : null;
+  const showIntro = !!section && section.answered === 0 && introDone !== section.skill;
+  const isChoice = state.phase === 'receptive';
+
+  const selectedKey = selection?.itemId === item.id ? selection.key : null;
+  const passage = item.stimulus?.kind === 'passage' ? item.stimulus : null;
+  const audio = item.stimulus?.audioKey
+    ? { key: item.stimulus.audioKey, left: item.stimulus.playsLeft ?? 0, max: item.stimulus.maxPlays }
+    : item.audioKey
+      ? { key: item.audioKey, left: item.audioPlaysLeft ?? 0, max: item.audioMaxPlays ?? 0 }
+      : null;
 
   const next = () => {
-    if (item.kind === 'choice') {
-      if (!selectedKey) return;
-      session.answerChoice(item.id, selectedKey).catch(showError);
-    } else if (item.kind === 'writing') {
-      setOverlay(words > 0 ? 'submit' : 'skip');
-    } else {
-      setOverlay(recorder.state === 'idle' ? 'skip' : 'submit');
-    }
+    if (!selectedKey) return;
+    const timeSec = shownAt.current?.itemId === item.id ? Math.round((Date.now() - shownAt.current.at) / 1000) : 0;
+    session.answer(item.id, selectedKey, timeSec).catch((e) => {
+      if (isApiError(e, 'invalid_answer')) refresh().catch(() => {});
+      showError(e);
+    });
   };
 
-  // submit: cevabı gönder · skip: boş geç (0 puan)
-  const confirmTask = (skip: boolean) => {
-    let request: Promise<unknown>;
-    if (item.kind === 'writing') {
-      request = session.submitWriting(item.id, skip ? null : writingText);
-    } else if (item.kind === 'speaking') {
-      // Kayıt sürerken gönderilirse önce durdurulur
-      recorder.stop();
-      request = session.submitSpeaking(item.id, !skip);
-    } else {
-      return;
+  const playAudio = (key: string) =>
+    session.playAudio(key).catch((e) => {
+      // Ekrandaki soru değişmiş olabilir
+      if (isApiError(e, 'no_audio', 'wrong_audio')) refresh().catch(() => {});
+      throw e;
+    });
+
+  // Okuma metni yatay tablette soruyla yan yana; telefonda ve dikey tablette Text / Question sekmeleri
+  const showSidePassage = !!passage && isTablet && !isPortrait;
+  const showPaneTabs = !!passage && !showSidePassage && !showIntro;
+  const defaultPane: Pane = passage && passageSeen === passage.id ? 'question' : 'text';
+  const pane = paneState?.itemId === item.id ? paneState.pane : defaultPane;
+  const showInlinePassage = showPaneTabs && pane === 'text';
+
+  const switchPane = (nextPane: Pane) => {
+    if (passage && pane === 'text') {
+      // Metinden çıkarken kaydırma yeri saklanır
+      setPassageOffsets((o) => ({ ...o, [passage.id]: passageScrollY.current }));
+      setPassageSeen(passage.id);
     }
-    request.then(() => setOverlay(null)).catch(showError);
+    setPaneState({ itemId: item.id, pane: nextPane });
+  };
+
+  const onContentScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    if (showInlinePassage) passageScrollY.current = e.nativeEvent.contentOffset.y;
   };
 
   const dialog = buildDialog({
     overlay,
-    item,
-    words,
-    exits,
-    leftReason,
-    busy,
-    onBackToTest: backToTest,
-    onLeave: leaveToAssignments,
-    onClose: () => setOverlay(null),
-    onConfirm: confirmTask,
+    leaving,
+    inactivityLeftMinutes: Math.round((state.guard.inactivityEndSeconds - state.guard.inactivityWarnSeconds) / 60),
+    onClose: () => {
+      setOverlay(null);
+      markActive();
+    },
+    onLeave: pauseAndLeave,
   });
 
   const chrome: ExamChromeProps = {
-    examTitle: snapshot.examTitle,
-    skill: item.skill,
-    numberKicker: item.kind === 'choice' ? 'Question' : 'Task',
-    numberValue: item.kind === 'choice' ? String(snapshot.itemNumber).padStart(2, '0') : item.kind === 'writing' ? 'W1' : 'S1',
-    timeText,
-    timeLow: remaining <= LOW_TIME_SECONDS,
-    sections: snapshot.sections,
-    currentSection: snapshot.currentSection,
-    itemNumber: snapshot.itemNumber,
+    examTitle: title || EXAM_TYPE_LABEL[state.examType],
+    skill: SKILL_LABEL[item.skill],
+    numberKicker: isChoice ? 'Question' : 'Task',
+    numberValue: isChoice ? String((section?.answered ?? 0) + 1).padStart(2, '0') : item.skill === 'writing' ? 'W' : 'S',
+    timeText: remaining == null ? null : formatClock(remaining),
+    timeLow: remaining != null && remaining <= LOW_TIME_SECONDS,
+    steps: buildSteps(state),
     saveState: session.saveState,
-    onPause: openExit,
+    onPause: () => setOverlay({ kind: 'exit' }),
   };
 
-  const reading = item.kind === 'choice' && !!item.passage;
-  // Okuma metni yalnızca yatay tablette soruyla yan yana durur. Dikey tablette yan panelle birlikte üç dar sütun oluyordu;
-  // orada da telefondaki gibi Text / Question sekmeleri kullanılır.
-  const showSidePassage = reading && isTablet && !isPortrait;
-  const showPaneTabs = reading && !showSidePassage;
-  const showInlinePassage = showPaneTabs && pane === 'text';
-
-  const hint = hintFor(item, { selectedKey, words, recordState: recorder.state });
-  const nextLabel = item.kind === 'choice' ? 'Next' : item.kind === 'writing' ? 'Submit text' : 'Submit recording';
+  const footerPadding = bottom(12);
+  const footerLift = keyboardInset > 0 ? Math.max(0, keyboardInset - (footerPadding - 12)) : 0;
   const watermarkText = [user?.username, [user?.name, user?.lastName].filter(Boolean).join(' ')]
     .filter(Boolean)
     .join(' · ');
 
   return (
-    <View style={[styles.root, isTablet && styles.rootTablet]}>
+    // Ekrana dokunmak etkinliktir (hareketsizlik sayacı); dokunma olayları alt bileşenlerden buraya kabarır
+    <View style={[styles.root, isTablet && styles.rootTablet]} onTouchStart={markActive}>
       {isTablet ? <ExamSidePanel {...chrome} /> : <ExamTopBar {...chrome} />}
 
       {/* Android edge-to-edge çizildiği için pencere klavyeyle küçülmez. Klavye açılınca yalnızca alt çubuk klavyenin
-          üstüne kaldırılır; ScrollView'ın boyu değişmez. Boyu küçülseydi Android odaktaki alanı görünür tutmak için sayfayı
-          kendiliğinden kaydırırdı (ScrollView.onSizeChanged). Sayfa olduğu yerde kalır, öğrenci kendisi kaydırır. */}
+          üstüne kaldırılır; ScrollView'ın boyu değişmez (bkz. CLAUDE.md "Klavye"). */}
       <View ref={keyboardRef} onLayout={onKeyboardAreaLayout} style={styles.main}>
         <View style={styles.body}>
-          {showSidePassage && item.kind === 'choice' && item.passage && (
-            <ScrollView style={styles.sidePassage} contentContainerStyle={[styles.sidePassageContent, { paddingTop: Math.max(28, insets.top + 16) + TABLET_TOP_EXTRA }]}>
-              <ReadingPassage passage={item.passage} showKicker />
+          {showSidePassage && passage && !showIntro && (
+            <ScrollView
+              key={passage.id}
+              style={styles.sidePassage}
+              contentContainerStyle={[styles.sidePassageContent, { paddingTop: Math.max(28, insets.top + 16) + TABLET_TOP_EXTRA }]}
+            >
+              <ReadingPassage stimulus={passage} showKicker />
             </ScrollView>
           )}
 
           <ScrollView
-            key={item.id}
+            key={`${item.id}:${showInlinePassage ? 'text' : 'question'}`}
             style={styles.content}
             contentContainerStyle={[
-                styles.contentInner,
-                isTablet && { paddingTop: Math.max(24, insets.top + 12) + TABLET_TOP_EXTRA },
-                // Klavye ve kaldırılan alt çubuk içeriğin altını kapatır; en alta kadar kaydırılabilsin
-                keyboardInset > 0 && { paddingBottom: 28 + footerLift },
-              ]}
+              styles.contentInner,
+              isTablet && { paddingTop: Math.max(24, insets.top + 12) + TABLET_TOP_EXTRA },
+              keyboardInset > 0 && { paddingBottom: 28 + footerLift },
+            ]}
+            contentOffset={showInlinePassage && passage ? { x: 0, y: passageOffsets[passage.id] ?? 0 } : undefined}
+            onScroll={onContentScroll}
+            scrollEventThrottle={100}
             keyboardShouldPersistTaps="handled"
-            // Android odaklanan metin alanını kendiliğinden kaydırmasın; sayfa olduğu yerde kalır, öğrenci kendisi kaydırır
             scrollsChildToFocus={false}
           >
             <View style={styles.column}>
-              {showPaneTabs && (
-                <View style={styles.paneTabs} accessibilityRole="tablist">
-                  <PaneTab label="Text" active={pane === 'text'} onPress={() => setPaneState({ itemId: item.id, pane: 'text' })} />
-                  <PaneTab label="Question" active={pane === 'question'} onPress={() => setPaneState({ itemId: item.id, pane: 'question' })} divided />
+              {showIntro && section ? (
+                <SectionIntro section={section} onContinue={() => setIntroDone(section.skill)} isTablet={isTablet} />
+              ) : !isChoice ? (
+                // Aşama 5: writing / speaking ekranları
+                <View style={styles.pending}>
+                  <Kicker accent>{`${SKILL_LABEL[item.skill]} task`}</Kicker>
+                  <Text style={styles.pendingStem}>{item.stem}</Text>
+                  <Text style={typography.muted}>
+                    This part opens in the next app update. Tap Pause and choose “Pause and leave” to continue later.
+                  </Text>
                 </View>
-              )}
-
-              {showInlinePassage && item.kind === 'choice' && item.passage ? (
-                <View>
-                  <ReadingPassage passage={item.passage} />
-                  <Button
-                    label="Go to question"
-                    variant="secondary"
-                    trailing
-                    onPress={() => setPaneState({ itemId: item.id, pane: 'question' })}
-                  />
-                </View>
-              ) : item.kind === 'choice' ? (
-                <View style={styles.question}>
-                  {item.audio && (
-                    <ListeningPlayer key={item.audio.id} audio={item.audio} onRequestPlay={session.registerPlay} paused={frozen} />
-                  )}
-                  <ChoiceQuestion
-                    item={item}
-                    selected={selectedKey}
-                    onSelect={(key) => setSelection({ itemId: item.id, key })}
-                    isTablet={isTablet}
-                    disabled={busy}
-                  />
-                </View>
-              ) : item.kind === 'writing' ? (
-                <WritingTaskView
-                  task={item}
-                  text={writingText}
-                  onChangeText={(text) => {
-                    setWriting({ taskId: item.id, text });
-                    session.saveDraft(item.id, text);
-                  }}
-                  onPasteBlocked={() => {
-                    toast.show('Pasting is disabled in this test');
-                    session.logEvent({ type: 'paste_blocked' });
-                  }}
-                  // TODO: Fotoğraf yükleme (el yazısı → metin) backend ile netleşince
-                  onPhoto={() => toast.show('The photo will be converted to text once uploaded')}
-                  isTablet={isTablet}
-                  editable={!busy}
-                />
               ) : (
-                <SpeakingTaskView task={item} state={recorder.state} seconds={recorder.seconds} onToggle={recorder.toggle} isTablet={isTablet} />
+                <>
+                  {showPaneTabs && (
+                    <View style={styles.paneTabs} accessibilityRole="tablist">
+                      <PaneTab label="Text" active={pane === 'text'} onPress={() => switchPane('text')} />
+                      <PaneTab label="Question" active={pane === 'question'} onPress={() => switchPane('question')} divided />
+                    </View>
+                  )}
+
+                  {showInlinePassage && passage ? (
+                    <View>
+                      <ReadingPassage stimulus={passage} />
+                      <Button label="Go to question" variant="secondary" trailing onPress={() => switchPane('question')} />
+                    </View>
+                  ) : (
+                    <View style={styles.question}>
+                      {audio && (
+                        <ListeningPlayer
+                          key={audio.key}
+                          audioKey={audio.key}
+                          maxPlays={audio.max}
+                          playsLeft={audio.left}
+                          onPlay={playAudio}
+                          stopSignal={item.id}
+                          frozen={!!overlay}
+                          onPlayingChange={setAudioPlaying}
+                        />
+                      )}
+                      <ChoiceQuestion
+                        item={item}
+                        selected={selectedKey}
+                        onSelect={(key) => setSelection({ itemId: item.id, key })}
+                        isTablet={isTablet}
+                        disabled={busy}
+                      />
+                    </View>
+                  )}
+                </>
               )}
             </View>
           </ScrollView>
         </View>
 
-        {/* Alt çubuğun boyu sabit kalır (boyu değişse ScrollView da değişir ve sayfa kayar). Klavye açıkken alttaki sistem
-            boşluğu klavyenin altına girecek kadar kaldırılır; buton klavyenin 12px üstünde durur. */}
-        <View style={[styles.footer, { paddingBottom: footerPadding, transform: [{ translateY: -footerLift }] }]}>
-          <Text style={styles.hint}>{hint}</Text>
-          <Button
-            label={nextLabel}
-            size="large"
-            trailing
-            onPress={next}
-            loading={busy && !overlay}
-            disabled={item.kind === 'choice' && !selectedKey}
-            style={styles.nextButton}
-          />
-        </View>
+        {isChoice && !showIntro && (
+          <View style={[styles.footer, { paddingBottom: footerPadding, transform: [{ translateY: -footerLift }] }]}>
+            <Text style={styles.hint}>{selectedKey ? 'No going back after this.' : 'Choose an answer to continue.'}</Text>
+            <Button
+              label="Next"
+              size="large"
+              trailing
+              onPress={next}
+              loading={busy}
+              disabled={!selectedKey}
+              style={styles.nextButton}
+            />
+          </View>
+        )}
       </View>
 
       <Watermark text={watermarkText} />
@@ -321,6 +341,48 @@ export default function ExamSessionScreen({ examId }: ExamSessionScreenProps) {
       <Toast message={toast.message} bottom={bottom(12) + 84} padX={padX} />
     </View>
   );
+}
+
+// Bölüm adımları: çoktan seçmeli bölümler (sıra sabit) + writing / speaking
+function buildSteps(state: SessionState): ChromeStep[] {
+  const { section, progress, phase } = state;
+  const steps: ChromeStep[] = [];
+
+  if (phase === 'receptive' && section) {
+    RECEPTIVE_SKILLS.slice(0, section.total).forEach((skill, i) => {
+      const index = i + 1;
+      const stepState = index < section.index ? 'done' : index === section.index ? 'current' : 'todo';
+      steps.push({
+        key: skill,
+        label: SKILL_LABEL[skill],
+        state: stepState,
+        meta: stepState === 'current' ? `Question ${section.answered + 1}` : stepState === 'done' ? 'Done' : '',
+        progress: stepState === 'current' ? Math.min(1, section.answered / Math.max(1, section.max)) : 0,
+      });
+    });
+  } else {
+    steps.push({ key: 'receptive', label: 'Multiple choice', state: 'done', meta: 'Done', progress: 0 });
+  }
+
+  const productive: Skill[] =
+    progress.productiveTotal >= 2
+      ? ['writing', 'speaking']
+      : progress.productiveTotal === 1
+        ? [state.currentItem?.skill === 'speaking' ? 'speaking' : 'writing']
+        : [];
+  productive.forEach((skill, i) => {
+    const stepState =
+      phase !== 'productive' ? 'todo' : i < progress.productiveDone ? 'done' : i === progress.productiveDone ? 'current' : 'todo';
+    steps.push({
+      key: skill,
+      label: SKILL_LABEL[skill],
+      state: stepState,
+      meta: stepState === 'current' ? 'Now' : stepState === 'done' ? 'Done' : '1 task',
+      progress: 0,
+    });
+  });
+
+  return steps;
 }
 
 function PaneTab({ label, active, onPress, divided }: { label: string; active: boolean; onPress: () => void; divided?: boolean }) {
@@ -336,75 +398,53 @@ function PaneTab({ label, active, onPress, divided }: { label: string; active: b
   );
 }
 
-function hintFor(item: ExamItem, ctx: { selectedKey: string | null; words: number; recordState: string }) {
-  if (item.kind === 'choice') return ctx.selectedKey ? 'No going back after this.' : 'Choose an answer to continue.';
-  if (item.kind === 'writing') {
-    if (ctx.words < item.minWords) return `Write at least ${item.minWords} words.`;
-    if (ctx.words > item.maxWords) return `${item.maxWords} words maximum.`;
-    return 'Word count is within range.';
-  }
-  if (ctx.recordState === 'idle') return 'Tap the microphone to start recording.';
-  if (ctx.recordState === 'recording') return 'Tap the square to stop recording.';
-  return 'Recording ready.';
-}
-
 interface DialogContext {
   overlay: Overlay | null;
-  item: ExamItem;
-  words: number;
-  exits: number;
-  leftReason: string;
-  busy: boolean;
-  onBackToTest: () => void;
-  onLeave: () => void;
+  leaving: boolean;
+  inactivityLeftMinutes: number;
   onClose: () => void;
-  onConfirm: (skip: boolean) => void;
+  onLeave: () => void;
 }
 
-// Prototipteki dört pencere (exit, left, submit, skip)
 function buildDialog(ctx: DialogContext): DialogConfig | null {
-  const isWriting = ctx.item.kind === 'writing';
-  switch (ctx.overlay) {
+  switch (ctx.overlay?.kind) {
     case 'exit':
       return {
         kicker: 'Pause',
         title: 'Do you want to leave the test?',
-        body: 'Answers are saved and the timer stops. You’ll resume from this question.',
+        body: 'Your answers are saved and the timer stops. When you come back, you continue from this question.',
         primaryLabel: 'Back to test',
-        onPrimary: ctx.onBackToTest,
-        secondaryLabel: 'Pause and leave',
-        onSecondary: ctx.onLeave,
-      };
-    case 'left':
-      return {
-        kicker: `Security alert · exit ${ctx.exits}`,
-        title: 'You left the test screen',
-        body: `${ctx.leftReason} Timer paused; exit recorded.`,
-        tone: 'warn',
-        primaryLabel: 'Back to test',
-        onPrimary: ctx.onBackToTest,
-      };
-    case 'submit':
-      return {
-        kicker: isWriting ? 'Writing task' : 'Speaking task',
-        title: 'Submit your answer?',
-        body: isWriting ? `Your text (${ctx.words} words) can’t be changed after this.` : 'Your recording can’t be changed after this.',
-        primaryLabel: 'Submit',
-        onPrimary: () => ctx.onConfirm(false),
-        secondaryLabel: 'Go back',
-        onSecondary: ctx.onClose,
-        busy: ctx.busy,
-      };
-    case 'skip':
-      return {
-        kicker: 'Empty answer',
-        title: 'Skip this task?',
-        body: 'This task is empty. Skipping scores 0.',
-        tone: 'warn',
-        primaryLabel: isWriting ? 'Back to writing' : 'Back to recording',
         onPrimary: ctx.onClose,
-        secondaryLabel: ctx.busy ? 'Skipping…' : 'Skip, score 0',
-        onSecondary: () => ctx.onConfirm(true),
+        secondaryLabel: ctx.leaving ? 'Leaving…' : 'Pause and leave',
+        onSecondary: ctx.onLeave,
+        busy: ctx.leaving,
+      };
+    case 'warn':
+      return {
+        kicker: `Warning · ${ctx.overlay.count} of ${ctx.overlay.limit}`,
+        title: 'Don’t leave the app during the test',
+        body: `Every exit is recorded. Leaving the app ${ctx.overlay.limit} times ends your test.`,
+        tone: 'warn',
+        primaryLabel: 'Back to test',
+        onPrimary: ctx.onClose,
+      };
+    case 'final':
+      return {
+        kicker: 'Last warning',
+        title: 'One more exit ends your test',
+        body: 'If you leave the app once more, your test ends and your answers so far are scored.',
+        tone: 'warn',
+        primaryLabel: 'Back to test',
+        onPrimary: ctx.onClose,
+      };
+    case 'inactive':
+      return {
+        kicker: 'Are you still there?',
+        title: 'Continue your test',
+        body: `Your test ends if you don’t touch the screen for ${ctx.inactivityLeftMinutes} more minutes.`,
+        tone: 'warn',
+        primaryLabel: 'Continue',
+        onPrimary: ctx.onClose,
       };
     default:
       return null;
@@ -459,6 +499,15 @@ const createStyles = (isTablet: boolean, isPortrait: boolean) => {
     },
     question: {
       gap: 20,
+    },
+    pending: {
+      gap: 12,
+    },
+    pendingStem: {
+      fontFamily: fonts.semiBold,
+      fontSize: isTablet ? 22 : 20,
+      lineHeight: isTablet ? 31 : 28,
+      color: colors.text,
     },
     footer: {
       flexDirection: isTablet ? 'row' : 'column',

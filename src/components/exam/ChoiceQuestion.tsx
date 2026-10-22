@@ -1,38 +1,43 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { theme } from '../../theme';
-import type { ChoiceItem } from '../../types/exam';
-import ImagePlaceholder from '../ImagePlaceholder';
+import type { SessionItem } from '../../types/exam';
+import RemoteImage from '../RemoteImage';
 
 const { colors, fonts } = theme;
 
+// Ekranda gösterilen harf şıkkın sırasına göredir; sunucuya giden değer her zaman şıkkın key alanı
+const LETTERS = ['A', 'B', 'C', 'D', 'E', 'F'];
+
 interface ChoiceQuestionProps {
-  item: ChoiceItem;
+  item: SessionItem;
   selected: string | null;
   onSelect: (key: string) => void;
   isTablet: boolean;
   disabled?: boolean;
 }
 
-// Yönerge + soru kökü + (varsa) görsel + A–D seçenekleri
+// Soru kökü + (varsa) görsel + şıklar. single_choice (2–4 şık) ve true_false (2 şık) aynı biçimde çizilir.
+// Şıklar sunucunun gönderdiği sırayla gösterilir; sıralanmaz, harfe göre dizilmez.
 export default function ChoiceQuestion({ item, selected, onSelect, isTablet, disabled }: ChoiceQuestionProps) {
   return (
     <View style={styles.wrap}>
       <View style={styles.stemBlock}>
-        <Text style={styles.instruction}>{item.instruction}</Text>
+        {item.itemType === 'true_false' && <Text style={styles.instruction}>True or false?</Text>}
         <Text style={[styles.stem, { fontSize: isTablet ? 22 : 20, lineHeight: isTablet ? 31 : 28 }]}>{item.stem}</Text>
       </View>
 
-      {item.imageLabel && <ImagePlaceholder label={item.imageLabel} maxWidth={420} />}
+      {!!item.imageUrl && <RemoteImage uri={item.imageUrl} style={styles.image} accessibilityLabel="Question picture" />}
 
       <View accessibilityRole="radiogroup" style={styles.options}>
-        {item.options.map((option) => {
+        {item.options.map((option, i) => {
           const isSelected = selected === option.key;
+          const letter = LETTERS[i] ?? String(i + 1);
           return (
             <Pressable
               key={option.key}
               accessibilityRole="radio"
               accessibilityState={{ checked: isSelected, disabled }}
-              accessibilityLabel={`${option.key}. ${option.text}`}
+              accessibilityLabel={`${letter}. ${option.text}`}
               disabled={disabled}
               onPress={() => onSelect(option.key)}
               style={({ pressed }) => [
@@ -41,9 +46,12 @@ export default function ChoiceQuestion({ item, selected, onSelect, isTablet, dis
               ]}
             >
               <View style={[styles.key, isSelected && styles.keySelected]}>
-                <Text style={[styles.keyText, isSelected && styles.keyTextSelected]}>{option.key}</Text>
+                <Text style={[styles.keyText, isSelected && styles.keyTextSelected]}>{letter}</Text>
               </View>
-              <Text style={styles.optionText}>{option.text}</Text>
+              <View style={styles.optionBody}>
+                {!!option.imageUrl && <RemoteImage uri={option.imageUrl} style={styles.optionImage} />}
+                {!!option.text && <Text style={styles.optionText}>{option.text}</Text>}
+              </View>
             </Pressable>
           );
         })}
@@ -67,6 +75,10 @@ const styles = StyleSheet.create({
   stem: {
     fontFamily: fonts.semiBold,
     color: colors.text,
+  },
+  image: {
+    maxWidth: 420,
+    aspectRatio: 4 / 3,
   },
   options: {
     gap: 10,
@@ -108,8 +120,15 @@ const styles = StyleSheet.create({
   keyTextSelected: {
     color: colors.bg,
   },
-  optionText: {
+  optionBody: {
     flex: 1,
+    gap: 8,
+  },
+  optionImage: {
+    maxWidth: 240,
+    aspectRatio: 4 / 3,
+  },
+  optionText: {
     fontFamily: fonts.regular,
     fontSize: 16,
     lineHeight: 22,

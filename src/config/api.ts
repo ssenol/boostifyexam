@@ -26,6 +26,13 @@ export const API_ENDPOINTS = {
   exams: "/exams",
   exam: (assignmentId: string) => `/exams/${assignmentId}`,
   results: "/results",
+  start: (assignmentId: string) => `/exams/${assignmentId}/start`,
+  session: (sessionId: string) => `/sessions/${sessionId}`,
+  answer: (sessionId: string) => `/sessions/${sessionId}/answer`,
+  audioPlay: (sessionId: string) => `/sessions/${sessionId}/audio/play`,
+  heartbeat: (sessionId: string) => `/sessions/${sessionId}/heartbeat`,
+  pause: (sessionId: string) => `/sessions/${sessionId}/pause`,
+  events: (sessionId: string) => `/sessions/${sessionId}/events`,
 } as const;
 
 const TIMEOUT_MS = 20000;

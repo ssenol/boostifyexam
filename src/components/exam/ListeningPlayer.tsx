@@ -1,65 +1,107 @@
+import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
 import { useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { theme } from '../../theme';
-import type { AudioClip } from '../../types/exam';
+import type { AudioPlay } from '../../types/exam';
+import { isApiError } from '../../utils/errors';
 import Button from '../Button';
 import { HeadphonesIcon, PlayIcon } from '../icons';
 
 const { colors, fonts } = theme;
 
 interface ListeningPlayerProps {
-  audio: AudioClip;
-  // Sunucuya dinleme hakkını düşürtür; null dönerse çalınmaz
-  onRequestPlay: (audioId: string) => Promise<{ playsUsed: number; maxPlays: number } | null>;
-  // Pause penceresi / arka plan sırasında çalma durur
-  paused: boolean;
+  audioKey: string;
+  maxPlays: number;
+  // Sunucunun son state'indeki kalan hak
+  playsLeft: number;
+  // POST audio/play: bir hak düşer, 15 dk geçerli adres döner
+  onPlay: (key: string) => Promise<AudioPlay>;
+  // Değişince (cevap gönderildi) çalma durur
+  stopSignal: string;
+  // Pencere açıkken / arka planda çalma durur
+  frozen: boolean;
+  // Çalarken hareketsizlik sayacı işlemez
+  onPlayingChange: (playing: boolean) => void;
 }
 
-const TICK_MS = 250;
-
-// Dinleme kartı. Öğrenci kaydı ileri/geri saramaz, durduramaz; yalnızca baştan çalar.
-// Ekran bunu key={audio.id} ile çizer: aynı kayda bağlı bir sonraki soruda durum korunur, farklı kayıtta sıfırlanır.
-// TODO: Gerçek ses expo-audio ile çalınacak (audio.url). Şimdilik süre simüle ediliyor.
-export default function ListeningPlayer({ audio, onRequestPlay, paused }: ListeningPlayerProps) {
-  const [playsUsed, setPlaysUsed] = useState(audio.playsUsed);
-  const [started, setStarted] = useState(false);
+// Dinleme kartı. İleri sarma ve hız değiştirme yok (webdeki gibi). Hak kayda aittir: aynı kayda bağlı sonraki
+// sorularda da aynı sayı geçerlidir. Ekran bunu key={audioKey} ile çizer.
+export default function ListeningPlayer({
+  audioKey,
+  maxPlays,
+  playsLeft,
+  onPlay,
+  stopSignal,
+  frozen,
+  onPlayingChange,
+}: ListeningPlayerProps) {
+  const player = useAudioPlayer(null);
+  const status = useAudioPlayerStatus(player);
+  // Çaldıktan sonra sunucunun döndürdüğü hak; state yenilenene kadar bu gösterilir
+  const [localLeft, setLocalLeft] = useState<number | null>(null);
   const [requesting, setRequesting] = useState(false);
-  const [elapsedMs, setElapsedMs] = useState(0);
+  const [problem, setProblem] = useState<string | null>(null);
+  const [started, setStarted] = useState(false);
 
-  const durationMs = audio.durationSeconds * 1000;
-  const playing = started && elapsedMs < durationMs;
+  const left = Math.min(playsLeft, localLeft ?? playsLeft);
+  const playing = status.playing;
+  const duration = status.duration || 0;
+  const finished = status.didJustFinish || (duration > 0 && status.currentTime >= duration - 0.25);
+  // Arka plana geçince yarıda kalan çalma, hak harcamadan sürdürülebilir
+  const interrupted = started && !playing && !finished && status.currentTime > 0;
 
   useEffect(() => {
-    if (!playing || paused) return;
-    const timer = setInterval(() => setElapsedMs((ms) => Math.min(durationMs, ms + TICK_MS)), TICK_MS);
-    return () => clearInterval(timer);
-  }, [playing, paused, durationMs]);
+    onPlayingChange(playing);
+  }, [playing, onPlayingChange]);
 
-  const playsLeft = audio.maxPlays - playsUsed;
+  useEffect(() => {
+    player.pause();
+  }, [stopSignal, player]);
+
+  useEffect(() => {
+    if (frozen) player.pause();
+  }, [frozen, player]);
 
   const play = async () => {
-    if (playing || requesting || playsLeft <= 0) return;
+    if (playing || requesting || left <= 0) return;
     setRequesting(true);
-    const result = await onRequestPlay(audio.id);
-    setRequesting(false);
-    if (!result) return;
-    setPlaysUsed(result.playsUsed);
-    setElapsedMs(0);
-    setStarted(true);
+    setProblem(null);
+    try {
+      const result = await onPlay(audioKey);
+      setLocalLeft(result.playsLeft);
+      // Adres saklanmaz; her çalışta yenisi istenir
+      player.replace({ uri: result.url });
+      player.play();
+      setStarted(true);
+    } catch (e) {
+      if (isApiError(e, 'no_plays_left')) setLocalLeft(0);
+      // Hak zaten düşmüş olabilir; kalan hak varsa öğrenci tekrar dinleyebilir
+      else setProblem('Connection problem. Check your connection and try again.');
+    } finally {
+      setRequesting(false);
+    }
   };
 
-  const label = playing ? 'Playing…' : playsLeft <= 0 ? 'No plays left' : playsUsed === 0 ? 'Play recording' : 'Play once more';
-  const pct = durationMs > 0 ? Math.min(100, (elapsedMs / durationMs) * 100) : 0;
+  const label = playing
+    ? 'Playing…'
+    : interrupted
+      ? 'Continue playing'
+      : left <= 0
+        ? 'No plays left'
+        : started
+          ? 'Play once more'
+          : 'Play recording';
+  const pct = duration > 0 ? Math.min(100, (status.currentTime / duration) * 100) : 0;
 
   return (
     <View style={styles.card}>
       <View style={styles.header}>
         <HeadphonesIcon />
         <View style={styles.titles}>
-          <Text style={styles.title}>{audio.title}</Text>
-          <Text style={styles.subtitle}>{audio.subtitle}</Text>
+          <Text style={styles.title}>Recording</Text>
+          <Text style={styles.subtitle}>Listen, then answer the question.</Text>
         </View>
-        <Text style={styles.plays}>{`${playsLeft} / ${audio.maxPlays} plays`}</Text>
+        <Text style={styles.plays}>{`${left} / ${maxPlays} plays left`}</Text>
       </View>
       <View style={styles.track} accessibilityRole="progressbar" accessibilityValue={{ min: 0, max: 100, now: Math.round(pct) }}>
         <View style={[styles.fill, { width: `${pct}%` }]} />
@@ -67,11 +109,11 @@ export default function ListeningPlayer({ audio, onRequestPlay, paused }: Listen
       <Button
         label={label}
         trailing={<PlayIcon />}
-        onPress={play}
+        onPress={interrupted ? () => player.play() : play}
         loading={requesting}
-        disabled={playing || playsLeft <= 0}
+        disabled={playing || (!interrupted && left <= 0)}
       />
-      <Text style={styles.note}>Plays are counted on the server.</Text>
+      {!!problem && <Text style={styles.problem}>{problem}</Text>}
     </View>
   );
 }
@@ -116,9 +158,9 @@ const styles = StyleSheet.create({
     height: 6,
     backgroundColor: colors.accent,
   },
-  note: {
-    fontFamily: fonts.regular,
-    fontSize: 12,
-    color: colors.neutral700,
+  problem: {
+    fontFamily: fonts.semiBold,
+    fontSize: 13,
+    color: colors.warn700,
   },
 });
