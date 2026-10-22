@@ -13,7 +13,7 @@ const { colors, fonts } = theme;
 const PASTE_THRESHOLD = 20;
 
 // "30–60 words" / "at least 30 words" / "up to 60 words"; 0 = o sınır yok
-export function wordRange(minWords: number, maxWords: number): string {
+function wordRange(minWords: number, maxWords: number): string {
   if (minWords && maxWords) return `${minWords}–${maxWords} words`;
   if (minWords) return `at least ${minWords} words`;
   if (maxWords) return `up to ${maxWords} words`;

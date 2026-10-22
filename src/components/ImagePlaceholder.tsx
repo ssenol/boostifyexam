@@ -11,7 +11,7 @@ interface ImagePlaceholderProps {
   style?: StyleProp<ViewStyle>;
 }
 
-// TODO: Görseller API'den gelince expo-image ile gerçek görsel gösterilecek. Şimdilik prototipteki gri kutu.
+// Görsel adresi boşsa ya da yüklenemezse gösterilen gri kutu (prototipteki yer tutucu); bkz. CoverImage
 export default function ImagePlaceholder({ label, aspectRatio = 16 / 9, maxWidth, style }: ImagePlaceholderProps) {
   return (
     <View style={[styles.box, { aspectRatio, maxWidth }, style]} accessibilityRole="image" accessibilityLabel={label}>

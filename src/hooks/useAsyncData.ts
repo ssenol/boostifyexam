@@ -49,7 +49,8 @@ export default function useAsyncData<T>(load: () => Promise<T>): AsyncData<T> {
 
   useEffect(() => {
     mounted.current = true;
-    fetchData();
+    // State yalnızca await'ten sonra değişir; çağrı bir sonraki mikro göreve bırakılır
+    Promise.resolve().then(fetchData);
     return () => {
       mounted.current = false;
     };

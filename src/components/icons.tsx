@@ -1,4 +1,4 @@
-import Svg, { Circle, Line, Path, Polygon, Rect } from 'react-native-svg';
+import Svg, { Line, Path, Polygon, Rect } from 'react-native-svg';
 import { theme } from '../theme';
 
 // Prototipte kullanılan Lucide ikonları (aynı path'ler)
@@ -73,15 +73,6 @@ export function StopIcon({ size = 26, color = theme.colors.bg }: IconProps) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill={color}>
       <Rect width={14} height={14} x={5} y={5} />
-    </Svg>
-  );
-}
-
-export function CameraIcon({ size = 18, color = theme.colors.text }: IconProps) {
-  return (
-    <Svg width={size} height={size} viewBox="0 0 24 24" {...stroke(color)}>
-      <Path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z" />
-      <Circle cx={12} cy={13} r={3} />
     </Svg>
   );
 }

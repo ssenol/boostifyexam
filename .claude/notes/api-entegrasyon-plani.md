@@ -168,7 +168,8 @@ Sınav **başlatılmaz**: her deneme gerçek ve geri alınamaz.
 > görünümü ve eski tipler kaldırıldı. Virgülle birleşik görev yönergeleri maddelere ayrılıyor (`instructionLines`).
 
 **Aşama 7: Temizlik ve yayın öncesi.**
-- Kullanılmayan bileşen / ikonlar temizlenir. Notlar ve CLAUDE.md güncellenir.
+- ✓ Kullanılmayan bileşen / ikon / export'lar temizlendi, lint 0 uyarı (2026-10-22).
+- Notlar ve CLAUDE.md güncel tutulur.
 - Rehberin "Yayın öncesi kontrol listesi" gerçek iPhone ve Android'de tamamlanır.
 
 ## Bekleyen testler

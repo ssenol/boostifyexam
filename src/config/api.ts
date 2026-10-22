@@ -1,4 +1,4 @@
-import axios, { AxiosError, AxiosRequestConfig } from "axios";
+import axios, { AxiosError, AxiosRequestConfig, create } from "axios";
 import { store } from "../store/index";
 import { logout, setCredentials } from "../store/slices/authSlice";
 import type { ApiSuccess, AuthSession } from "../types/api";
@@ -41,7 +41,7 @@ export const API_ENDPOINTS = {
 
 const TIMEOUT_MS = 20000;
 
-const api = axios.create({
+const api = create({
   baseURL: BASE_URL,
   timeout: TIMEOUT_MS,
 });

@@ -4,6 +4,7 @@ import { theme } from '../../theme';
 import {
   CEFR_LEVELS,
   RECEPTIVE_SKILLS,
+  type CefrLevel,
   SKILL_LABEL,
   type CertificateStatus,
   type ProductiveReport,
@@ -147,7 +148,7 @@ function Stat({ label, value, divided }: { label: string; value: string; divided
 
 // Seviye + 10 adımlık CEFR çubuğu
 function SkillRow({ name, level, meta }: { name: string; level: string; meta: string }) {
-  const li = CEFR_LEVELS.indexOf(level as (typeof CEFR_LEVELS)[number]);
+  const li = CEFR_LEVELS.indexOf(level as CefrLevel);
   return (
     <View style={styles.skillRow}>
       <View style={styles.skillLine}>
