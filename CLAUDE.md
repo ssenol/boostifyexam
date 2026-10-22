@@ -146,3 +146,5 @@ Kişisel cihazda uygulama kilitlenemez; "Secure mode" = caydırma + tespit + sun
   prototipten bilinçli farklar, açık ürün soruları.
 - [.claude/notes/mimari-ve-guvenlik-karari.md](.claude/notes/mimari-ve-guvenlik-karari.md): RN/Expo kararı, kişisel
   cihaz varsayımı, istemci/sunucu güvenlik önlemleri planı, prototip ekran listesi, açık konular (SSO, görseller, endpoint'ler).
+- [.claude/notes/iki-bilgisayar-kurulumu.md](.claude/notes/iki-bilgisayar-kurulumu.md): ikinci Mac'i hazırlama adımları,
+  Ues Tech imzalama, karşılaşılan iOS kurulum hataları ve çözümleri, güncel durum.
