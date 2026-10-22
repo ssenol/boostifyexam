@@ -11,8 +11,9 @@ import { ChromeStep, ExamChromeProps, ExamSidePanel, ExamTopBar, LOW_TIME_SECOND
 import ListeningPlayer from '../components/exam/ListeningPlayer';
 import ReadingPassage from '../components/exam/ReadingPassage';
 import SectionIntro from '../components/exam/SectionIntro';
+import SpeakingTaskView, { type Confirm } from '../components/exam/SpeakingTaskView';
 import Watermark from '../components/exam/Watermark';
-import Kicker from '../components/Kicker';
+import WritingTaskView, { lengthWarning } from '../components/exam/WritingTaskView';
 import ScreenHeader from '../components/ScreenHeader';
 import StateView from '../components/StateView';
 import Toast, { useToast } from '../components/Toast';
@@ -20,15 +21,19 @@ import useBottomSpacing from '../hooks/useBottomSpacing';
 import useExamGuard from '../hooks/useExamGuard';
 import useExamSession from '../hooks/useExamSession';
 import useKeyboardInset from '../hooks/useKeyboardInset';
+import useMicPermission from '../hooks/useMicPermission';
 import useResponsive from '../hooks/useResponsive';
 import { useAppSelector } from '../store/hooks';
 import { selectCurrentUser } from '../store/slices/authSlice';
 import { theme } from '../theme';
 import { EXAM_TYPE_LABEL, RECEPTIVE_SKILLS, SKILL_LABEL, type SessionState, type Skill } from '../types/exam';
 import { getErrorMessage, isApiError } from '../utils/errors';
-import { formatClock } from '../utils/format';
+import { countWords, formatClock } from '../utils/format';
 
-const { colors, fonts, typography } = theme;
+const { colors, fonts } = theme;
+
+// Writing / speaking onayı: birincil düğme true, ikincil false döner
+type Ask = Omit<DialogConfig, 'onPrimary' | 'onSecondary'> & { resolve: (ok: boolean) => void };
 
 // exit: öğrenci Pause'a bastı · warn / final: uygulamadan çıkma uyarısı (sunucunun kararı) · inactive: hareketsizlik
 type Overlay = { kind: 'exit' } | { kind: 'warn'; count: number; limit: number } | { kind: 'final' } | { kind: 'inactive' };
@@ -74,6 +79,11 @@ export default function ExamSessionScreen({ assignmentId, title }: ExamSessionSc
   // Geçiş ekranı gösterilmiş bölüm
   const [introDone, setIntroDone] = useState<Skill | null>(null);
   const [audioPlaying, setAudioPlaying] = useState(false);
+  const [recordingActive, setRecordingActive] = useState(false);
+  const [ask, setAsk] = useState<Ask | null>(null);
+  // Writing metni; açılışta sunucudaki taslak (state.currentDraft)
+  const [writing, setWriting] = useState<{ itemId: string; text: string } | null>(null);
+  const mic = useMicPermission();
   // Soru ekranda ne zamandan beri (cevapla timeSec olarak gider)
   const shownAt = useRef<{ itemId: string; at: number } | null>(null);
 
@@ -89,7 +99,20 @@ export default function ExamSessionScreen({ assignmentId, title }: ExamSessionSc
   }, [itemId]);
 
   // Sınav ekranı ilk açıldığında bir kez "monitored"
-  const { sendEvent, refresh } = session;
+  const { sendEvent, refresh, setDraft } = session;
+
+  // Writing taslağı heartbeat ve pause ile gider; writing dışında gönderilmez
+  const isWriting = item?.itemType === 'writing_prompt';
+  const writingText = isWriting ? (writing?.itemId === item.id ? writing.text : (state?.currentDraft ?? '')) : '';
+  useEffect(() => {
+    setDraft(isWriting ? writingText : undefined);
+  }, [isWriting, writingText, setDraft]);
+
+  // Görev zaten teslim edilmiş (ör. ağ hatasından sonra tekrar gönderildi): durumu yenile
+  const productiveSubmitted = !!state?.productiveSubmitted;
+  useEffect(() => {
+    if (productiveSubmitted) refresh().catch(() => {});
+  }, [productiveSubmitted, refresh]);
   const hasState = !!state;
   const monitoredSent = useRef(false);
   useEffect(() => {
@@ -107,6 +130,7 @@ export default function ExamSessionScreen({ assignmentId, title }: ExamSessionSc
   const running = !!state && state.phase !== 'done';
   const { markActive } = useExamGuard({
     enabled: running,
+    onLeave: session.flushHeartbeat,
     onReturn: (seconds) => {
       sendEvent('tabSwitch', Math.round(seconds))
         .then((v) => {
@@ -121,8 +145,8 @@ export default function ExamSessionScreen({ assignmentId, title }: ExamSessionSc
     onBackPress: () => {
       if (running && !overlay) setOverlay({ kind: 'exit' });
     },
-    // Dinleme çalarken ve (hareketsizlik uyarısı dışında) bir pencere açıkken sayaç işlemez
-    inactivityCounting: !audioPlaying && (!overlay || overlay.kind === 'inactive'),
+    // Dinleme çalarken, kayıt alınırken ve (hareketsizlik uyarısı dışında) bir pencere açıkken sayaç işlemez
+    inactivityCounting: !audioPlaying && !recordingActive && !ask && (!overlay || overlay.kind === 'inactive'),
     inactivityWarnSeconds: state?.guard.inactivityWarnSeconds ?? 300,
     inactivityEndSeconds: state?.guard.inactivityEndSeconds ?? 600,
     onInactivityWarn: () => {
@@ -133,6 +157,16 @@ export default function ExamSessionScreen({ assignmentId, title }: ExamSessionSc
       sendEvent('inactivityEnd').catch(() => {});
     },
   });
+
+  const confirm: Confirm = (config) =>
+    new Promise((resolve) => {
+      setAsk({ ...config, resolve });
+    });
+
+  const answerAsk = (ok: boolean) => {
+    ask?.resolve(ok);
+    setAsk(null);
+  };
 
   // "Sınavdan çık": saat durur. İstek ulaşmasa da çıkılır; sunucu heartbeat gelmeyince saati kendisi durdurur.
   const pauseAndLeave = () => {
@@ -156,6 +190,8 @@ export default function ExamSessionScreen({ assignmentId, title }: ExamSessionSc
   if (!item) return <StateView loading />;
 
   const section = state.phase === 'receptive' ? state.section : null;
+  const isSpeaking = item.itemType === 'speaking_prompt';
+  const words = countWords(writingText);
   const showIntro = !!section && section.answered === 0 && introDone !== section.skill;
   const isChoice = state.phase === 'receptive';
 
@@ -199,11 +235,45 @@ export default function ExamSessionScreen({ assignmentId, title }: ExamSessionSc
     setPaneState({ itemId: item.id, pane: nextPane });
   };
 
+  const submitWriting = async () => {
+    const spec = item.productive;
+    const warning = lengthWarning(words, spec?.minWords ?? 0, spec?.maxWords ?? 0);
+    const ok = await confirm(
+      words > 0
+        ? {
+            kicker: 'Writing task',
+            title: 'Submit your text?',
+            body: `Your text (${words} words) can’t be changed after you submit.${warning ? ` ${warning}.` : ''}`,
+            primaryLabel: 'Submit',
+            secondaryLabel: 'Keep writing',
+          }
+        : {
+            kicker: 'Empty answer',
+            title: 'Skip this task?',
+            body: 'You haven’t written anything. This task will score 0.',
+            tone: 'warn',
+            primaryLabel: 'Skip, score 0',
+            secondaryLabel: 'Keep writing',
+          },
+    );
+    if (!ok) return;
+    session
+      .submitTask(words > 0 ? { itemId: item.id, text: writingText } : { itemId: item.id, skipped: true })
+      .catch(showError);
+  };
+
   const onContentScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
     if (showInlinePassage) passageScrollY.current = e.nativeEvent.contentOffset.y;
   };
 
-  const dialog = buildDialog({
+  const askDialog: DialogConfig | null = ask && {
+    ...ask,
+    onPrimary: () => answerAsk(true),
+    onSecondary: ask.secondaryLabel ? () => answerAsk(false) : undefined,
+    busy: busy,
+  };
+
+  const dialog = askDialog ?? buildDialog({
     overlay,
     leaving,
     inactivityLeftMinutes: Math.round((state.guard.inactivityEndSeconds - state.guard.inactivityWarnSeconds) / 60),
@@ -268,16 +338,39 @@ export default function ExamSessionScreen({ assignmentId, title }: ExamSessionSc
             <View style={styles.column}>
               {showIntro && section ? (
                 <SectionIntro section={section} onContinue={() => setIntroDone(section.skill)} isTablet={isTablet} />
-              ) : !isChoice ? (
-                // Aşama 5: writing / speaking ekranları
-                <View style={styles.pending}>
-                  <Kicker accent>{`${SKILL_LABEL[item.skill]} task`}</Kicker>
-                  <Text style={styles.pendingStem}>{item.stem}</Text>
-                  <Text style={typography.muted}>
-                    This part opens in the next app update. Tap Pause and choose “Pause and leave” to continue later.
-                  </Text>
-                </View>
-              ) : (
+              ) : isWriting ? (
+                <WritingTaskView
+                  item={item}
+                  text={writingText}
+                  onChangeText={(text) => {
+                    setWriting({ itemId: item.id, text });
+                    markActive();
+                  }}
+                  onPasteBlocked={() => {
+                    toast.show('Pasting is turned off in this test.');
+                    sendEvent('pasteBlocked').catch(() => {});
+                  }}
+                  isTablet={isTablet}
+                  editable={!busy && !productiveSubmitted}
+                />
+              ) : isSpeaking ? (
+                <SpeakingTaskView
+                  key={item.id}
+                  item={item}
+                  isTablet={isTablet}
+                  mic={mic.status}
+                  requestMic={mic.request}
+                  confirm={confirm}
+                  onTranscribe={(uri) => session.transcribe(item.id, uri)}
+                  onSubmit={(recording) => session.submitTask({ recording: { itemId: item.id, ...recording } })}
+                  onSubmitWithout={(kind) =>
+                    session.submitTask(kind === 'technical' ? { itemId: item.id, technical: true } : { itemId: item.id, skipped: true })
+                  }
+                  onRecordingChange={setRecordingActive}
+                  onActivity={markActive}
+                  busy={busy}
+                />
+              ) : !isChoice ? null : (
                 <>
                   {showPaneTabs && (
                     <View style={styles.paneTabs} accessibilityRole="tablist">
@@ -301,7 +394,7 @@ export default function ExamSessionScreen({ assignmentId, title }: ExamSessionSc
                           playsLeft={audio.left}
                           onPlay={playAudio}
                           stopSignal={item.id}
-                          frozen={!!overlay}
+                          frozen={!!overlay || !!ask}
                           onPlayingChange={setAudioPlaying}
                         />
                       )}
@@ -319,6 +412,23 @@ export default function ExamSessionScreen({ assignmentId, title }: ExamSessionSc
             </View>
           </ScrollView>
         </View>
+
+        {isWriting && (
+          <View style={[styles.footer, { paddingBottom: footerPadding, transform: [{ translateY: -footerLift }] }]}>
+            <Text style={styles.hint}>
+              {words > 0 ? 'You can’t change your text after you submit.' : 'Write your text, then submit it.'}
+            </Text>
+            <Button
+              label={words > 0 ? 'Submit text' : 'Skip task'}
+              size="large"
+              trailing
+              onPress={submitWriting}
+              loading={busy}
+              disabled={productiveSubmitted}
+              style={styles.nextButton}
+            />
+          </View>
+        )}
 
         {isChoice && !showIntro && (
           <View style={[styles.footer, { paddingBottom: footerPadding, transform: [{ translateY: -footerLift }] }]}>
@@ -499,15 +609,6 @@ const createStyles = (isTablet: boolean, isPortrait: boolean) => {
     },
     question: {
       gap: 20,
-    },
-    pending: {
-      gap: 12,
-    },
-    pendingStem: {
-      fontFamily: fonts.semiBold,
-      fontSize: isTablet ? 22 : 20,
-      lineHeight: isTablet ? 31 : 28,
-      color: colors.text,
     },
     footer: {
       flexDirection: isTablet ? 'row' : 'column',

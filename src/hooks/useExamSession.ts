@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import examService from '../services/exam';
+import examService, { type SpeakingRecording, type Transcription } from '../services/exam';
 import type { AudioPlay, EventVerdict, ExamEventType, SessionState } from '../types/exam';
 import { getErrorMessage, toApiError } from '../utils/errors';
 
@@ -165,8 +165,49 @@ export default function useExamSession(assignmentId: string) {
     [apply, enqueue],
   );
 
+  // Writing / speaking teslimi. Tekrar göndermek güvenli (step kuralı burada da geçerli).
+  const submitTask = useCallback(
+    async (
+      body:
+        | { itemId: string; text: string }
+        | { itemId: string; skipped: true }
+        | { itemId: string; technical: true }
+        | { recording: Omit<SpeakingRecording, 'step'> },
+    ) => {
+      if (busyRef.current) return null;
+      busyRef.current = true;
+      setBusy(true);
+      try {
+        return await run((id) => {
+          const step = stateRef.current?.step ?? 0;
+          return 'recording' in body
+            ? examService.submitRecording(id, { ...body.recording, step })
+            : examService.submitProductive(id, { ...body, step });
+        });
+      } finally {
+        busyRef.current = false;
+        setBusy(false);
+      }
+    },
+    [run],
+  );
+
+  const transcribe = useCallback((itemId: string, fileUri: string): Promise<Transcription> => {
+    const current = stateRef.current;
+    if (!current) return Promise.reject(new Error('No session'));
+    return withRetry(() => examService.transcribe(current.sessionId, itemId, fileUri));
+  }, []);
+
   const setDraft = useCallback((text: string | undefined) => {
     draftRef.current = text;
+  }, []);
+
+  // Uygulama arka plana alınırken taslak beklemeden gönderilir
+  const flushHeartbeat = useCallback(() => {
+    const current = stateRef.current;
+    const itemId = current?.currentItem?.id;
+    if (!current || !itemId || current.phase === 'done') return;
+    examService.heartbeat(current.sessionId, itemId, draftRef.current).catch(() => {});
   }, []);
 
   // Heartbeat: sınav ekranı açık ve deneme bitmemişken 15 sn'de bir. Yanıt yalnızca phase = done ise uygulanır:
@@ -231,6 +272,9 @@ export default function useExamSession(assignmentId: string) {
     pause,
     playAudio,
     sendEvent,
+    submitTask,
+    transcribe,
     setDraft,
+    flushHeartbeat,
   };
 }

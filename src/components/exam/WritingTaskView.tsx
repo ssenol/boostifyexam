@@ -1,10 +1,10 @@
 import { useRef, useState } from 'react';
 import { StyleSheet, Text, TextInput, View } from 'react-native';
 import { theme } from '../../theme';
-import type { WritingTask } from '../../types/exam';
+import type { SessionItem } from '../../types/exam';
 import { countWords } from '../../utils/format';
-import Button from '../Button';
-import { CameraIcon } from '../icons';
+import Kicker from '../Kicker';
+import RemoteImage from '../RemoteImage';
 
 const { colors, fonts } = theme;
 
@@ -12,21 +12,42 @@ const { colors, fonts } = theme;
 // ekler; dikte de uzun cümle eklediği için bu sınavda engellenmiş olur.
 const PASTE_THRESHOLD = 20;
 
+// "30–60 words" / "at least 30 words" / "up to 60 words"; 0 = o sınır yok
+export function wordRange(minWords: number, maxWords: number): string {
+  if (minWords && maxWords) return `${minWords}–${maxWords} words`;
+  if (minWords) return `at least ${minWords} words`;
+  if (maxWords) return `up to ${maxWords} words`;
+  return '';
+}
+
+// Sınırların dışında teslim engellenmez; sadece uyarı gösterilir
+export function lengthWarning(words: number, minWords: number, maxWords: number): string | null {
+  if (words === 0) return null;
+  if (minWords && words < minWords) return 'Below the suggested length';
+  if (maxWords && words > maxWords) return 'Above the suggested length';
+  return null;
+}
+
 interface WritingTaskViewProps {
-  task: WritingTask;
+  item: SessionItem;
   text: string;
   onChangeText: (text: string) => void;
   onPasteBlocked: () => void;
-  onPhoto: () => void;
   isTablet: boolean;
   editable: boolean;
 }
 
-export default function WritingTaskView({ task, text, onChangeText, onPasteBlocked, onPhoto, isTablet, editable }: WritingTaskViewProps) {
+// Writing görevi: görev (stem), "Your text should include" yönergesi, varsa resim, metin kutusu, kelime sayacı.
+// Writing'in kendi süresi yoktur; sınavın kalan süresi geçerlidir. Taslak heartbeat ile kaydedilir.
+export default function WritingTaskView({ item, text, onChangeText, onPasteBlocked, isTablet, editable }: WritingTaskViewProps) {
   const [focused, setFocused] = useState(false);
   const lastText = useRef(text);
+  const spec = item.productive;
+  const minWords = spec?.minWords ?? 0;
+  const maxWords = spec?.maxWords ?? 0;
   const words = countWords(text);
-  const outOfRange = words > 0 && (words < task.minWords || words > task.maxWords);
+  const range = wordRange(minWords, maxWords);
+  const warning = lengthWarning(words, minWords, maxWords);
 
   const handleChange = (next: string) => {
     if (next.length - lastText.current.length > PASTE_THRESHOLD) {
@@ -40,10 +61,18 @@ export default function WritingTaskView({ task, text, onChangeText, onPasteBlock
   return (
     <View style={styles.wrap}>
       <View style={styles.head}>
-        <Text style={styles.kicker}>{`Writing task · ${task.minWords}–${task.maxWords} words`}</Text>
-        <Text style={[styles.title, { fontSize: isTablet ? 22 : 20, lineHeight: isTablet ? 31 : 28 }]}>{task.title}</Text>
-        <Text style={styles.prompt}>{task.prompt}</Text>
+        <Text style={styles.kicker}>{range ? `Writing task · ${range}` : 'Writing task'}</Text>
+        <Text style={[styles.stem, { fontSize: isTablet ? 22 : 20, lineHeight: isTablet ? 31 : 28 }]}>{item.stem}</Text>
       </View>
+
+      {!!spec?.instructions && (
+        <View style={styles.instructions}>
+          <Kicker>Your text should include</Kicker>
+          <Text style={styles.instructionsText}>{spec.instructions}</Text>
+        </View>
+      )}
+
+      {!!item.imageUrl && <RemoteImage uri={item.imageUrl} style={styles.image} accessibilityLabel="Task picture" />}
 
       <TextInput
         value={text}
@@ -72,12 +101,12 @@ export default function WritingTaskView({ task, text, onChangeText, onPasteBlock
 
       <View style={styles.meta}>
         <View style={styles.count}>
-          <Text style={[styles.countValue, outOfRange && styles.countWarn]}>{words}</Text>
-          <Text style={styles.countLabel}>{`/ ${task.minWords}–${task.maxWords} words`}</Text>
+          <Text style={[styles.countValue, !!warning && styles.countWarn]}>{words}</Text>
+          {!!range && <Text style={styles.countLabel}>{`/ ${range}`}</Text>}
         </View>
-        <Button label="Upload photo" variant="secondary" size="compact" leading={<CameraIcon />} onPress={onPhoto} style={styles.photo} />
+        {!!warning && <Text style={styles.warning}>{warning}</Text>}
       </View>
-      <Text style={styles.note}>Paste and autocorrect are off · saved automatically</Text>
+      <Text style={styles.note}>Paste and autocorrect are off · your draft is saved as you write</Text>
     </View>
   );
 }
@@ -94,15 +123,24 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.neutral700,
   },
-  title: {
+  stem: {
     fontFamily: fonts.semiBold,
     color: colors.text,
   },
-  prompt: {
+  instructions: {
+    backgroundColor: colors.surface,
+    padding: 14,
+    gap: 6,
+  },
+  instructionsText: {
     fontFamily: fonts.regular,
     fontSize: 15,
     lineHeight: 22,
     color: colors.neutral800,
+  },
+  image: {
+    maxWidth: 480,
+    aspectRatio: 4 / 3,
   },
   input: {
     minHeight: 240,
@@ -120,9 +158,9 @@ const styles = StyleSheet.create({
   },
   meta: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'baseline',
     flexWrap: 'wrap',
-    gap: 16,
+    gap: 12,
   },
   count: {
     flexDirection: 'row',
@@ -143,9 +181,10 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.neutral700,
   },
-  photo: {
-    marginLeft: 'auto',
-    alignSelf: 'auto',
+  warning: {
+    fontFamily: fonts.semiBold,
+    fontSize: 13,
+    color: colors.warn700,
   },
   note: {
     fontFamily: fonts.regular,

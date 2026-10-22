@@ -98,7 +98,9 @@ gönderilir (beklenmez) ve tokenlar her durumda silinir. Kullanıcıya ait yeni 
 - **Ekran:** `ExamSessionScreen` + `src/components/exam/*`: `phase` + `currentItem.itemType` ekranı seçer. Telefonda
   `ExamTopBar`, tablette 300px `ExamSidePanel`. Okuma metni yatay tablette yan sütunda, telefonda / dikey tablette
   Text / Question sekmeleriyle. `SectionIntro` bölüm geçişi, `ListeningPlayer` (`expo-audio`), `Watermark`.
-- **Henüz sahte sunucuda:** writing / speaking teslimi (Aşama 5), sonuç ve rapor (Aşama 6): `src/mocks/examServer.ts`.
+- **Writing / speaking:** `WritingTaskView` (taslak heartbeat'le gider), `SpeakingTaskView` (kayıt → transcribe →
+  düzelt → multipart teslim; teknik sorun / geçme). Onaylar ekranın `confirm`'ü ile (birincil true, ikincil false).
+- **Henüz sahte sunucuda:** bitiş ekranı, sonuç ve rapor (Aşama 6): `src/mocks/examServer.ts`.
 
 ### API katmanı
 

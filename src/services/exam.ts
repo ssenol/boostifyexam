@@ -27,10 +27,48 @@ interface EventBody {
   draftText?: string;
 }
 
+// Writing teslimi (düz JSON) ya da kayıt olmadan speaking: öğrenci bilerek geçti (skipped, 0 puan) ya da mikrofon
+// çalışmadı (technical, puanlamadan çıkarılır)
+interface ProductiveBody {
+  itemId: string;
+  step: number;
+  text?: string;
+  skipped?: boolean;
+  technical?: boolean;
+}
+
+export interface SpeakingRecording {
+  itemId: string;
+  step: number;
+  // Kayıt dosyası (file://…m4a)
+  fileUri: string;
+  durationSec: number;
+  // Öğrencinin onayladığı metin; metne çevrilemediyse boş
+  transcript: string;
+  transcriptEdited: boolean;
+}
+
+export interface Transcription {
+  transcript: string;
+  failed: boolean;
+}
+
+// Ses yüklemesi zayıf bağlantıda uzun sürebilir
+const UPLOAD_TIMEOUT_MS = 90000;
+
+// Dosya adının uzantısı doğru olmalı: bazı Android cihazlar türü application/octet-stream gönderir, sunucu o zaman
+// uzantıya bakar. Content-Type'ı (boundary) HTTP kütüphanesi koyar.
+function audioFile(uri: string) {
+  const name = uri.split("/").pop() || "recording.m4a";
+  return { uri, name: name.includes(".") ? name : `${name}.m4a`, type: "audio/mp4" } as unknown as Blob;
+}
+
+const multipart = { headers: { "Content-Type": "multipart/form-data" }, timeout: UPLOAD_TIMEOUT_MS };
+
 const unwrapState = async (request: Promise<{ state: SessionState }>) => (await request).state;
 
 // Sınav servisi (rehber: …/mobile/exam). Sınavın mantığı sunucudadır: her çağrı güncel state'i döner, ekran onu çizer.
-// Writing / speaking teslimi (Aşama 5), sonuç ve rapor (Aşama 6) henüz sahte sunucuda.
+// Sonuç ve rapor (Aşama 6) henüz sahte sunucuda.
 class ExamService {
   // Sınav listesi: kartlardaki düğmeyi her sınavın action alanı belirler
   getExams(): Promise<ExamList> {
@@ -85,6 +123,34 @@ class ExamService {
   // Sınav olayları; uyarı ya da bitirme kararını sunucu verir
   sendEvent(sessionId: string, body: EventBody): Promise<EventVerdict> {
     return apiPost<EventVerdict>(API_ENDPOINTS.events(sessionId), body);
+  }
+
+  // --- Writing / speaking --------------------------------------------------------------------------
+
+  // Writing teslimi (JSON, en fazla 20.000 karakter) ya da kayıtsız teslim (skipped / technical)
+  submitProductive(sessionId: string, body: ProductiveBody): Promise<SessionState> {
+    return unwrapState(apiPost(API_ENDPOINTS.productive(sessionId), body));
+  }
+
+  // Kaydı metne çevirir (dakikada 6). Sadece ekrandaki, henüz teslim edilmemiş speaking görevi için (aksi halde
+  // 409 not_open).
+  transcribe(sessionId: string, itemId: string, fileUri: string): Promise<Transcription> {
+    const form = new FormData();
+    form.append("itemId", itemId);
+    form.append("file", audioFile(fileUri));
+    return apiPost<Transcription>(API_ENDPOINTS.transcribe(sessionId), form, multipart);
+  }
+
+  // Speaking teslimi (multipart). Hatalar: 400 bad_upload, 413 audio_too_large, 415 unsupported_audio, 409 not_open.
+  submitRecording(sessionId: string, recording: SpeakingRecording): Promise<SessionState> {
+    const form = new FormData();
+    form.append("itemId", recording.itemId);
+    form.append("step", String(recording.step));
+    form.append("file", audioFile(recording.fileUri));
+    form.append("durationSec", String(recording.durationSec));
+    if (recording.transcript) form.append("transcript", recording.transcript);
+    form.append("transcriptEdited", String(recording.transcriptEdited));
+    return unwrapState(apiPost(API_ENDPOINTS.productive(sessionId), form, multipart));
   }
 
   // --- Sonuç ve raporlar (Aşama 6'ya kadar sahte sunucu) --------------------------------------------

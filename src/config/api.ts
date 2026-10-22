@@ -33,6 +33,8 @@ export const API_ENDPOINTS = {
   heartbeat: (sessionId: string) => `/sessions/${sessionId}/heartbeat`,
   pause: (sessionId: string) => `/sessions/${sessionId}/pause`,
   events: (sessionId: string) => `/sessions/${sessionId}/events`,
+  transcribe: (sessionId: string) => `/sessions/${sessionId}/speaking/transcribe`,
+  productive: (sessionId: string) => `/sessions/${sessionId}/productive`,
 } as const;
 
 const TIMEOUT_MS = 20000;

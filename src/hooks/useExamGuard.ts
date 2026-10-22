@@ -7,6 +7,8 @@ const MIN_AWAY_SECONDS = 0.6;
 interface ExamGuardOptions {
   // Sınav sürerken izlenir
   enabled: boolean;
+  // Uygulama arka plana alındı (writing taslağı hemen gönderilir)
+  onLeave: () => void;
   // Uygulama arka plana alınıp geri gelindi; sunucuya tabSwitch olarak gider
   onReturn: (secondsAway: number) => void;
   // Android donanım geri tuşu / geri hareketi
@@ -44,7 +46,10 @@ export default function useExamGuard(options: ExamGuardOptions) {
   useEffect(() => {
     const sub = AppState.addEventListener('change', (next) => {
       if (next === 'background') {
-        if (handlers.current.enabled && leftAt.current == null) leftAt.current = Date.now();
+        if (handlers.current.enabled && leftAt.current == null) {
+          leftAt.current = Date.now();
+          handlers.current.onLeave();
+        }
       } else if (next === 'active') {
         const since = leftAt.current;
         leftAt.current = null;

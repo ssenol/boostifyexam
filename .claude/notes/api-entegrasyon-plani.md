@@ -149,6 +149,11 @@ Sınav **başlatılmaz**: her deneme gerçek ve geri alınamaz.
 - Speaking: tek kayıt (en fazla `maxResponseSeconds`), durdurmadan önce onay, `transcribe`, metin düzeltme,
   multipart teslim (`durationSec`, `transcriptEdited`). İzin yoksa "teknik sorun" yolu (`technical: true`).
 
+> **Aşama 5 tamamlandı (2026-10-22).** `WritingTaskView` (taslak heartbeat ve arka plana geçerken hemen, yapıştırma →
+> `pasteBlocked`, sayaç sadece uyarı, teslim / boş geçme onayı), `SpeakingTaskView` (`expo-audio` kayıt, m4a, üst sınırda
+> kendiliğinden durur, durdurma onayı, `transcribe`, kaydı dinleme, metni düzeltme, multipart teslim, teknik sorun /
+> geçme). Ekran onayları tek `confirm` ile. Sınav sırasında Ayarlar'a gitme seçeneği yok (uygulamadan çıkış sayılır).
+
 **Aşama 6: Bitiş, rapor, sertifika.**
 - Bitiş ekranı `state.result`'ı gösterir. `awaiting_evaluation` ise not düşülür. Kurallarla biten sınav için ayrı metin.
 - Rapor (`GET /results/:id`): genel seviye + ölçek puanı, beceriler, writing ve speaking ayrıntısı, focusAreas,
@@ -179,17 +184,17 @@ Kodu yazılmış ama demo hesabın o anki durumu yüzünden henüz denenemeyen d
 |---|---|---|---|
 | ☐ | `action: resume` (duraklatılmış) | "Paused" etiketi, "Time left" kalan dakika, "Continue" doğrudan sınavı açar | Sınavı başlatıp "Sınavdan çık" |
 | ☐ | `action: resume` (duraklatılmamış) | "In progress" etiketi | Sınav açıkken uygulamayı öldürüp listeye dönmek |
-| ☐ | `action: view_result` | Kartta seviye, "View result" → rapor | Bir sınavı bitirmek |
+| ✓ | `action: view_result` | Kartta seviye, "View result" → rapor | Bir sınavı bitirmek |
 | ☐ | `action: wait` | Pasif "Opens 13 Oct" düğmesi, "Opens" tarihi | Başlangıcı ileri tarihli atama |
 | ☐ | `action: closed` | Pasif "Test closed" | Başlanmış ama bitiş tarihi geçmiş atama |
 | ☐ | `action: missed` | Pasif "Missed" | Başlanmadan bitiş tarihi geçmiş atama |
 | ☐ | Progress sınavı kartı | "Progress test" etiketi | Progress ataması |
 | ☐ | `mustTakePlacement` + birden çok sınav | Açık placement en üstte ve vurgulu, diğerleri altta | Placement + progress birlikte atanmış öğrenci |
-| ☐ | `mustTakePlacement: false` | "Take your placement test first" notu yok, vurgu yok | Placement'ı bitirmek |
-| ☐ | Ölçülmüş seviye (`level`) | Üstte "Your level: B1" vb., Profil'de seviye ve tarih | Placement'ı bitirmek |
+| ✓ | `mustTakePlacement: false` | "Take your placement test first" notu yok, vurgu yok | Placement'ı bitirmek |
+| ✓ | Ölçülmüş seviye (`level`) | Üstte "Your level: B1" vb., Profil'de seviye ve tarih | Placement'ı bitirmek |
 | ☐ | Boş `coverImage` / yüklenemeyen resim | Gri yer tutucu | Kapaksız atama (kapak zorunlu, olmayabilir) |
 | ☐ | Hiç atama yok | "No tests assigned to you" | Ataması olmayan öğrenci |
-| ☐ | Results kartı | Tarih, seviye, "View report" | Bir sınavı bitirmek |
+| ✓ | Results kartı | Tarih, seviye, "View report" | Bir sınavı bitirmek |
 | ☐ | Results kartı, `evaluating: true` | "Evaluating" etiketi | Bitirdikten hemen sonra (~1 dk) |
 | ☐ | Results kartı, `noLevel: true` | "Level not determined" | 8'den az puanlanan cevapla bitirmek |
 
@@ -225,6 +230,25 @@ Demo öğrencinin placement denemesi başlatıldı (2026-10-22), iPhone simülat
 | ☐ | Resimli soru / resimli şık / true_false | Görsel, yüklenemezse "Try again" | Bu tür soru gelirse |
 | ☐ | Uygulama arka plandayken dinleme | Çalma durur, dönünce "Continue playing" (hak harcamaz) | Listening sırasında çıkmak (çıkış sayılır!) |
 | ☐ | Uzun okuma metninde kaydırma yeri | Aynı metnin sonraki sorusunda yer korunur | Uzun metin |
+
+### Aşama 5: writing ve speaking
+
+İlk deneme 2026-10-22'de bitti: writing teslim edildi (A1+, 36), speaking "Report a technical problem" ile gönderildi
+(`technical: true` → `status: failed, technical: true`, puanlamaya katılmadı). Sonuç A1, ölçek 21, sertifika hazır.
+
+| ✓ | Durum | Beklenen | Nasıl oluşur |
+|---|---|---|---|
+| ✓ | Writing: görev, resim, yönerge, sayaç, teslim | — | İlk deneme |
+| ✓ | Speaking: teknik sorun bildirimi | Görev puanlamadan çıkar | İlk deneme |
+| ☐ | Writing taslağının geri gelmesi | Pause and leave → Continue sonrası metin yerinde | Yeni atama |
+| ☐ | Writing boş geçme (`skipped`) | 0 puan | Yeni atama |
+| ☐ | Yapıştırma denemesi | "Pasting is turned off", `pasteBlockedCount` artar | Yeni atama |
+| ☐ | Speaking kaydı → transcribe → metni düzeltme → teslim (multipart) | Kayıt sunucuya gider, metin raporda | Yeni atama |
+| ☐ | Kayıt üst sınırda (`maxResponseSeconds`) kendiliğinden durur | Metne çevirmeye geçer | Uzun kayıt |
+| ☐ | Kayıt sırasında uygulamadan çıkma | Kayıt o ana kadar alınır, çıkış sayılır | Yeni atama |
+| ☐ | Transcribe başarısız | "Couldn’t be turned into text", teslim yine açık | Sessiz / bozuk kayıt |
+| ☐ | Mikrofon izni reddedilmiş | Kayıt düğmesi yerine uyarı + teknik sorun | İzni reddetmek |
+| ☐ | Android'de kayıt dosyası türü | Sunucu `.m4a` uzantısıyla kabul eder | Fiziksel Android |
 
 ### Tablet görünümü
 
