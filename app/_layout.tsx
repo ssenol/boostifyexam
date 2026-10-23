@@ -9,6 +9,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Provider } from 'react-redux';
 import { PersistGate } from 'redux-persist/integration/react';
+import DeepLinkLoginHandler from '@/src/components/DeepLinkLoginHandler';
 import DialogProvider from '@/src/components/DialogProvider';
 import { persistor, store } from '@/src/store';
 import { theme } from '@/src/theme';
@@ -58,6 +59,8 @@ export default function RootLayout() {
                 <Stack.Screen name="(main)" />
                 <Stack.Screen name="(auth)" />
               </Stack>
+              {/* SSO deep link'iyle giriş; rehydrate sonrası çalışmalı, hata penceresi için DialogProvider içinde */}
+              <DeepLinkLoginHandler />
             </DialogProvider>
           </SafeAreaProvider>
         </PersistGate>

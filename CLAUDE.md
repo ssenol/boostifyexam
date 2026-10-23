@@ -26,7 +26,8 @@ npm run ios:sim:ipad                   # Simülatör: "iPad Air 11-inch (M4)"
 npm run android
 npm run typecheck                      # tsc --noEmit
 npm run lint                           # expo lint
-npx expo prebuild --clean              # Native projeleri (ios/android) yeniden üret
+CI=1 npm run prebuild:dev -- --clean   # Native projeleri (ios/android) dev varyantıyla yeniden üret
+npm run icons:dev                      # Normal ikonlardan DEV etiketli ikonları üret
 ```
 
 **Node sürümü:** Node 22 gerekli (sürüm `n` ile değiştiriliyor). Node 16 ile Expo CLI `Blob is not defined` hatası verir;
@@ -44,10 +45,30 @@ aynı adlı bir simülatöre denk gelip `Unable to boot device because we cannot
 veriyordu. Cihaz listesi: `xcrun devicectl list devices`. Simülatör script'leri ise adla seçer, çünkü simülatör
 UDID'i her Mac'te farklıdır; ad iki Mac'te de tek ve runtime'ı olan bir simülatöre denk gelmeli
 (`xcrun simctl list devices available`). Metro zaten açıksa `-- --no-bundler` eklenir.
+Xcode açıkken (özellikle prebuild'in sildiği eski workspace açık kalmışsa) `npm run ios` build alıp kurar ama telefonda
+başlatma adımında (`devicectl process launch`) takılır; uygulama elle açılınca da splash'te kalır, süreç hiç başlamaz.
+Çözüm: Xcode'u kapatıp uygulamayı yeniden açmak.
 
 Proje Dropbox'ta: `node_modules` ve prebuild sonrası `ios`/`android` için `xattr -w com.dropbox.ignored 1 <klasör>`
 uygulanmalı. Prebuild klasörü silip yeniden oluşturduğu için işaret kalkar; prebuild'den **sonra** tekrar uygulayın.
-Bu klasörler senkronlanmadığından her bilgisayarda ayrıca `npm ci` + `npx expo prebuild` gerekir. Xcode 27 / Device Hub notları için Speak'in `CLAUDE.md`'sine bakın.
+Bu klasörler senkronlanmadığından her bilgisayarda ayrıca `npm ci` + `npm run prebuild:dev` gerekir. Xcode 27 / Device Hub notları için Speak'in `CLAUDE.md`'sine bakın.
+
+### Build varyantları ve ikonlar
+
+BS / BW ile birebir aynı standart: `~/.claude/notes/expo-dev-varyant.md`.
+- Yerel script'ler (`start`, `ios*`, `android`, `prebuild:dev`) `APP_VARIANT=development` ile çalışır: uygulama
+  "BoostifyExam DEV" adıyla, `com.uesturkey.boostifyexam.dev` bundle id'siyle ve `boostifyexam-dev` scheme'iyle store
+  sürümünün yanına kurulur. iOS projesi `ios/BoostifyExamDEV.xcworkspace`. Store build'i yalnızca EAS `production`.
+- **Çıplak `npx expo prebuild` çalıştırmayın**: prod varyantı üretir. Xcode'un "Update to recommended settings"
+  önerisini kabul etmeyin (Pods deployment target bozulur; olduysa `cd ios && pod install`).
+- Görseller `assets/images/`: `icon.png` / `icon-dark.png` (iOS açık/koyu), `adaptive-icon.png` (Android), `splash.png`
+  (iki varyantta aynı). Figma çıktıları `_calismalar/` (`ios-icon-light/dark.png`, `android-icon.png`). Dev ikonları
+  elle düzenlenmez: normal ikon değişince `npm run icons:dev` (`dev-badge.png` bindirilir) → `npm run prebuild:dev`.
+- Dev araçları `__DEV__` yerine `IS_DEV_MODE` (`src/config/env.ts`) ile sarılır.
+- `react-native-worklets` / `react-native-reanimated` `package.json`'da **açıkça ve SDK sürümünde** durmalı
+  (`npx expo install`; şu an 0.10.1 / 4.5.1, BS/BW ile aynı). Yoksa expo-router üzerinden daha yeni bir worklets (0.13)
+  gelir, `expo-modules-core` onu desteklemez ve uygulama açılışta splash'te çöker
+  (`Assertion failed: (isObject()), function getObject, file jsi.h`, iz `WorkletsModule start`).
 
 Test altyapısı yok; doğrulama `npm run typecheck` + `npm run lint` + fiziksel cihaz.
 
@@ -75,6 +96,21 @@ app/
 
 `app/**` dosyaları ince sarmalayıcıdır; ekranın kendisi `src/screens/*.tsx`'te. Yeni ekran: önce `src/screens/`,
 sonra `app/` altında route dosyası. `@/*` path alias'ı kök dizini gösterir. Tüm kod TypeScript (strict).
+
+### Deep link ile SSO girişi
+
+BS / BW ile aynı akış. Okul platformundan gelen öğrenci service.ueslms üzerinden `boostifyexam://login?token=<şifreli SSO
+token>` ile app'e düşer (dev sürümünde scheme `boostifyexam-dev`).
+- `app/+native-intent.tsx` `token` taşıyan her linki `/`'e çevirir, token'ı `src/services/deepLinkToken.ts` kuyruğuna koyar.
+- `src/components/DeepLinkLoginHandler.tsx` (PersistGate + DialogProvider içinde) `authService.loginWithSsoToken()` →
+  `POST /auth/sso-mobile` `{ token }` (yanıt `/auth/login` ile aynı `AuthSession`, `students_only` dahil).
+  **Bu uç `/mobile/exam` altında sunucuda henüz yok (404)**; BS/BW'daki genel `/auth/sso-mobile` farklı token
+  döndürdüğü için kullanılmadı. Backend ekleyince istemci hazır.
+- Açık oturum yalnızca giriş başarılıysa değişir; `/auth/*` istekleri access token göndermez, 401'de yenilemez.
+  Yenileme sürerken oturum değişirse (`refresh_revoked`) yeni oturum kapatılmaz. Öğrenci değişince `(main)` Stack'i
+  `key={userId}` ile yeniden kurulur (önceki öğrencinin açık sınavı kalmaz).
+- Kayıtlı biyometrik bilgiler başka öğrenciye aitse `biometricAuth.clearCredentialsIfOtherUser()` siler ve kapatır.
+- Test: cihazda Safari/Notlar'dan `boostifyexam-dev://login?token=<token>`. Geçersiz token → "Automatic sign-in failed".
 
 ### Redux store
 
@@ -125,7 +161,7 @@ Kaynak: `_calismalar/BoostifyExam Mobil Uygulama Geliştirici Rehberi.docx` (pla
 `src/theme/index.ts`: prototipin token'ları (`colors`, `fonts`, `space`, `layout`). Marka renkleri prototipten farklı:
 mavi `accent` #303FE0, turuncu `primary` / `warn` #F05A25 (logo ve splash ile aynı); birincil düğme turuncu. Logo:
 `<Logo variant="color|white" />` (`assets/images/logo*.png`); `ScreenHeader` başlık verilmezse logoyu gösterir.
-İkon / splash: `assets/images/` (`app.config.js`; iOS ikonu alpha'sız). Dark mode yok. Köşe yarıçapı
+İkon / splash: `assets/images/` (bkz. "Build varyantları ve ikonlar"). Dark mode yok. Köşe yarıçapı
 tasarımda bilerek 0. Font: Archivo 400/600/800 (`fonts.regular/semiBold/extraBold`). Tekrarlanan metin stilleri `typography`
 (`kicker`, `kickerAccent`, `body`, `muted`). Ortak bileşenler (`src/components/`):
 - `Button`: `primary` (turuncu ana eylem) / `dark` (siyah, belirgin ama ana eylem değil: Sign out) / `secondary` / `ghost` varyantları; `large` / `medium` / `compact` boyutları; `trailing` true ise ok ikonu.

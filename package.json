@@ -3,12 +3,14 @@
   "main": "index.js",
   "version": "1.0.0",
   "scripts": {
-    "start": "expo start",
-    "android": "expo run:android",
-    "ios": "expo run:ios --device 00008140-000D54510C41801C",
-    "ios:ipad": "expo run:ios --device 00008122-000428AC2EBB801C",
-    "ios:sim": "expo run:ios --device \"iPhone 18 Pro\"",
-    "ios:sim:ipad": "expo run:ios --device \"iPad Air 11-inch (M4)\"",
+    "start": "APP_VARIANT=development expo start",
+    "android": "APP_VARIANT=development expo run:android",
+    "ios": "APP_VARIANT=development expo run:ios --device 00008140-000D54510C41801C",
+    "ios:ipad": "APP_VARIANT=development expo run:ios --device 00008122-000428AC2EBB801C",
+    "ios:sim": "APP_VARIANT=development expo run:ios --device \"iPhone 18 Pro\"",
+    "ios:sim:ipad": "APP_VARIANT=development expo run:ios --device \"iPad Air 11-inch (M4)\"",
+    "prebuild:dev": "APP_VARIANT=development expo prebuild",
+    "icons:dev": "node scripts/generate-dev-icons.js",
     "lint": "expo lint",
     "typecheck": "tsc --noEmit"
   },
@@ -43,10 +45,12 @@
     "react-dom": "19.2.3",
     "react-native": "0.86.3",
     "react-native-gesture-handler": "~2.32.0",
+    "react-native-reanimated": "4.5.1",
     "react-native-safe-area-context": "~5.7.0",
     "react-native-screens": "~4.26.0",
     "react-native-svg": "15.15.4",
     "react-native-webview": "13.16.1",
+    "react-native-worklets": "0.10.1",
     "react-redux": "^9.2.0",
     "redux-persist": "^6.0.0"
   },
@@ -55,6 +59,7 @@
     "@types/react": "~19.2.10",
     "eslint": "^9.25.0",
     "eslint-config-expo": "~57.0.2",
+    "pngjs": "^3.4.0",
     "typescript": "~6.0.3"
   },
   "private": true

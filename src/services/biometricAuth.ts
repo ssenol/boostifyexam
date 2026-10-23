@@ -107,6 +107,16 @@ class BiometricAuthService {
     await SecureStore.deleteItemAsync(CREDENTIALS_KEY);
   }
 
+  // SSO linkiyle giriş yapan öğrenci, kayıtlı kimlik bilgilerinin sahibi değilse kayıt silinir ve biyometrik
+  // kapatılır: yoksa çıkıştan sonra Face ID önceki öğrencinin hesabını açardı. Aynı öğrenciyse (ya da kayıt yoksa)
+  // dokunulmaz.
+  async clearCredentialsIfOtherUser(username: string): Promise<void> {
+    const stored = await this.getCredentials();
+    if (!stored) return;
+    if (stored.username.trim().toLowerCase() === username.trim().toLowerCase()) return;
+    await this.disable();
+  }
+
   // Şifre değiştiyse (invalid_credentials) ya da kullanıcı kapattıysa
   async disable(): Promise<void> {
     await this.setEnabled(false);

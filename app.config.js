@@ -4,17 +4,28 @@ const BUNDLE_ID = 'com.uesturkey.boostifyexam';
 
 module.exports = {
   expo: {
-    scheme: "boostifyexam",
+    // SSO deep link'i store ve dev sürümü yan yanayken karışmasın
+    scheme: IS_DEV ? "boostifyexam-dev" : "boostifyexam",
     name: IS_DEV ? "BoostifyExam DEV" : "BoostifyExam",
     slug: "boostifyexam",
     version: "1.0.0",
     orientation: "portrait",
-    // iOS ikonu alpha kanalsız olmalı (App Store reddeder); kaynak: _calismalar/ios-icon.png
-    icon: "./assets/images/icon.png",
+    // Kaynak: _calismalar/ios-icon-light.png / ios-icon-dark.png / android-icon.png.
+    // Dev ikonları `npm run icons:dev` ile üretilir, elle düzenlenmez.
+    icon: IS_DEV ? "./assets/images/icon-dev.png" : "./assets/images/icon.png",
     userInterfaceStyle: "light",
     ios: {
       supportsTablet: true,
       requireFullScreen: false,
+      icon: IS_DEV
+        ? {
+            light: "./assets/images/icon-dev.png",
+            dark: "./assets/images/icon-dev-dark.png"
+          }
+        : {
+            light: "./assets/images/icon.png",
+            dark: "./assets/images/icon-dark.png"
+          },
       infoPlist: {
         // iPhone portre kalır; iPad her yöne döner (expo-screen-orientation varsayılan maskeyi buradan okur)
         UISupportedInterfaceOrientations: [
@@ -34,9 +45,9 @@ module.exports = {
       buildNumber: "1"
     },
     android: {
-      // Ön plan %90 ölçekli: Android'in maskesi kenarları kırptığında logo kesilmez
       adaptiveIcon: {
-        foregroundImage: "./assets/images/adaptive-icon.png",
+        foregroundImage: IS_DEV ? "./assets/images/adaptive-icon-dev.png" : "./assets/images/adaptive-icon.png",
+        // Foreground görseli kendi zeminini içeriyor; bu renk yalnızca maske kenarında görünür
         backgroundColor: "#303fe0"
       },
       package: IS_DEV ? `${BUNDLE_ID}.dev` : BUNDLE_ID,
@@ -91,6 +102,8 @@ module.exports = {
       ]
     ],
     extra: {
+      // Çalışma anında src/config/env.ts okur (dev araçlarını göstermek için)
+      appVariant: IS_DEV ? "development" : "production",
       router: {},
       eas: {
         projectId: "f1038a0c-ba86-488a-9d29-e1284ed38ebe"

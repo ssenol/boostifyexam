@@ -7,7 +7,7 @@ Proje Dropbox ile iki Mac arasında senkronlanıyor. `node_modules`, `ios`, `and
 ## Yeni/ikinci bir Mac'i hazırlama
 
 1. `n 22.14.0` (Node 22), `npm ci`, ardından `xattr -w com.dropbox.ignored 1 node_modules`.
-2. `npx expo prebuild --platform ios --clean` → bittiği an `xattr -w com.dropbox.ignored 1 ios`.
+2. `CI=1 npm run prebuild:dev -- --platform ios --clean` → bittiği an `xattr -w com.dropbox.ignored 1 ios`.
    Prebuild klasörü silip yeniden oluşturduğu için işaret kalkar; Pods kurulurken Dropbox yüklemeye
    başlamasın diye ikinci terminalde şu beklenebilir:
    `until [ -f ios/Podfile ]; do sleep 0.2; done; xattr -w com.dropbox.ignored 1 ios`
@@ -17,14 +17,14 @@ Proje Dropbox ile iki Mac arasında senkronlanıyor. `node_modules`, `ios`, `and
    Mac'teki sertifikayı geçersiz kılar; tercihen `.p12` olarak taşınır.
 4. Cihaz o Mac'le hiç eşleşmediyse bir kez kabloyla bağlanıp "Güven" denir (Xcode 27'de Device Hub).
 5. `npm run ios` / `npm run ios:ipad`.
-6. Android: JDK 17 (bkz. CLAUDE.md "Java sürümü"), `npx expo prebuild --platform android` → `xattr ... android`.
+6. Android: JDK 17 (bkz. CLAUDE.md "Java sürümü"), `npm run prebuild:dev -- --platform android` → `xattr ... android`.
 
 ## Karşılaşılan hatalar
 
 - `No code signing certificates are available` → 3. adım yapılmamış.
 - `needs to be unlocked to enable development services` → cihazın kilidi açılmalı.
 - `Provisioning profile ... doesn't include the currently selected device` → cihaz Ues Tech'e kayıtlı değil:
-  `xcodebuild -workspace ios/BoostifyExam.xcworkspace -scheme BoostifyExam -configuration Debug -destination id=<UDID> -allowProvisioningUpdates -allowProvisioningDeviceRegistration build`
+  `xcodebuild -workspace ios/BoostifyExamDEV.xcworkspace -scheme BoostifyExamDEV -configuration Debug -destination id=<UDID> -allowProvisioningUpdates -allowProvisioningDeviceRegistration build`
 - `MismatchedApplicationIdentifierEntitlement` → cihazdaki uygulama başka takımla imzalı; uygulama silinip
   tekrar kurulur.
 - `cannot find type '__ObjC::expo' in scope` / `failed to build module 'ExpoModulesCore'; this SDK is not supported
@@ -41,7 +41,7 @@ Proje Dropbox ile iki Mac arasında senkronlanıyor. `node_modules`, `ios`, `and
 ## Native paket eklendiğinde
 
 Bir Mac'te native paket eklenince (`package.json` + `app.config.js` değişir) diğer Mac'te bir kez:
-`npm ci` → `npx expo prebuild --clean` → `xattr -w com.dropbox.ignored 1 ios android` → yeniden build.
+`npm ci` → `CI=1 npm run prebuild:dev -- --clean` → `xattr -w com.dropbox.ignored 1 ios android` → yeniden build.
 `npm ci` sonrası `node_modules` işareti korunur (klasör silinmez), ama emin olmak için `xattr -p` ile bakılabilir.
 
 - 2026-10-22: `expo-audio`, `react-native-webview`, `expo-print`, `expo-sharing`, `expo-screen-capture`,

@@ -21,6 +21,9 @@ export const API_ENDPOINTS = {
     login: "/auth/login",
     refresh: "/auth/refresh",
     logout: "/auth/logout",
+    // service.ueslms'ten deep link ile gelen SSO token'ını oturuma çevirir (sunucuda henüz yok, BS/BW'daki
+    // /auth/sso-mobile'ın sınav karşılığı olarak bekleniyor)
+    ssoMobile: "/auth/sso-mobile",
   },
   me: "/me",
   exams: "/exams",
@@ -114,7 +117,8 @@ api.interceptors.response.use(
         const refreshApiError = toApiError(refreshError);
         // Yenileme anahtarı geçersizse (refresh_*, account_disabled) çıkış. Ağ ya da sunucu hatasında oturum
         // korunur: eski anahtar sunucuda 60 sn daha kabul edildiği için sonraki istek yeniden dener.
-        if (refreshApiError.status === 401) store.dispatch(logout());
+        // refresh_revoked: yenileme sürerken çıkış yapıldı ya da SSO ile başka öğrenciye geçildi, yeni oturuma dokunulmaz.
+        if (refreshApiError.status === 401 && refreshApiError.code !== "refresh_revoked") store.dispatch(logout());
         throw refreshApiError;
       }
       original.headers.Authorization = `Bearer ${accessToken}`;

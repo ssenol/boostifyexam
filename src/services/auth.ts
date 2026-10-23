@@ -9,6 +9,12 @@ class AuthService {
     return apiPost<AuthSession>(API_ENDPOINTS.auth.login, { username, password });
   }
 
+  // Web'den (service.ueslms) deep link ile gelen şifreli SSO token'ını oturuma çevirir. Yanıt /auth/login ile aynı,
+  // öğrenci kontrolü (students_only) dahil. /auth/* olduğu için mevcut access token'ı göndermez, 401'de yenilemez.
+  loginWithSsoToken(ssoToken: string): Promise<AuthSession> {
+    return apiPost<AuthSession>(API_ENDPOINTS.auth.ssoMobile, { token: ssoToken });
+  }
+
   async me(): Promise<AuthUser> {
     const data = await apiGet<{ user: AuthUser }>(API_ENDPOINTS.me);
     return data.user;
