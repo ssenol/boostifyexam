@@ -104,8 +104,10 @@ token>` ile app'e düşer (dev sürümünde scheme `boostifyexam-dev`).
 - `app/+native-intent.tsx` `token` taşıyan her linki `/`'e çevirir, token'ı `src/services/deepLinkToken.ts` kuyruğuna koyar.
 - `src/components/DeepLinkLoginHandler.tsx` (PersistGate + DialogProvider içinde) `authService.loginWithSsoToken()` →
   `POST /auth/sso-mobile` `{ token }` (yanıt `/auth/login` ile aynı `AuthSession`, `students_only` dahil).
-  **Bu uç `/mobile/exam` altında sunucuda henüz yok (404)**; BS/BW'daki genel `/auth/sso-mobile` farklı token
-  döndürdüğü için kullanılmadı. Backend ekleyince istemci hazır.
+  **Bu uç `/mobile/exam` altında sunucuda henüz yok (404).** BS/BW'daki genel `/auth/sso-mobile` kullanılamaz: genel
+  access token sınav uçlarında geçiyor ama refresh token'ı `/mobile/exam/auth/refresh` `refresh_invalid` ile reddediyor
+  (23.10.2026'da denendi), yani öğrenci access token'ın süresi dolunca (sınav ortasında da) çıkışa düşer. Backend'den
+  istenen: token çözme / 5 dk / öğrenci kontrolü genel uçla aynı, yanıt `/mobile/exam/auth/login` ile aynı. İstemci hazır.
 - Açık oturum yalnızca giriş başarılıysa değişir; `/auth/*` istekleri access token göndermez, 401'de yenilemez.
   Yenileme sürerken oturum değişirse (`refresh_revoked`) yeni oturum kapatılmaz. Öğrenci değişince `(main)` Stack'i
   `key={userId}` ile yeniden kurulur (önceki öğrencinin açık sınavı kalmaz).
