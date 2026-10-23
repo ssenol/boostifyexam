@@ -110,6 +110,11 @@ token>` ile app'e düşer (dev sürümünde scheme `boostifyexam-dev`).
   Yenileme sürerken oturum değişirse (`refresh_revoked`) yeni oturum kapatılmaz. Öğrenci değişince `(main)` Stack'i
   `key={userId}` ile yeniden kurulur (önceki öğrencinin açık sınavı kalmaz).
 - Kayıtlı biyometrik bilgiler başka öğrenciye aitse `biometricAuth.clearCredentialsIfOtherUser()` siler ve kapatır.
+- Web tarafı: service-ueslms `#/boostifyexam?sso=...` (`BoostifyApp.vue`, `app: 'exam'`; `&dev=1` dev sürümünü,
+  `&debug=1` adımları gösterir), token'ı ueslms `BoostifyEduController` üretir (`MOBILE_APPS`'te `exam`).
+  Ayrıntı: `ues/ueslms/.claude/notes/boostifyedu-mobil-sso.md`.
+  23.10.2026'da test edildi: öğrenci linki DEV'i açıp sunucu ucu olmadığı için "Automatic sign-in failed" gösterdi,
+  öğretmen reddedildi, debug modu adımları gösterdi.
 - Test: cihazda Safari/Notlar'dan `boostifyexam-dev://login?token=<token>`. Geçersiz token → "Automatic sign-in failed".
 
 ### Redux store
