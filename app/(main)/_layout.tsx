@@ -17,7 +17,7 @@ export default function MainLayout() {
   }, [isAuthenticated, dispatch]);
 
   if (!isAuthenticated) {
-    return <Redirect href="/login" />;
+    return <Redirect href="/welcome" />;
   }
 
   // SSO linkiyle başka öğrenciye geçilince önceki öğrencinin ekranları (açık sınav dahil) kalmasın: Stack yeniden kurulur

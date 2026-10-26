@@ -11,7 +11,7 @@ import useBottomSpacing from '../hooks/useBottomSpacing';
 import useMicPermission from '../hooks/useMicPermission';
 import useResponsive from '../hooks/useResponsive';
 import authService from '../services/auth';
-import biometricAuth, { type BiometricAvailability } from '../services/biometricAuth';
+import biometricAuth, { BiometricError, type BiometricAvailability } from '../services/biometricAuth';
 import { store } from '../store';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { selectCurrentUser, setCredentials, setUser } from '../store/slices/authSlice';
@@ -64,9 +64,15 @@ export default function ProfileScreen() {
     if (ok) performLogout({ dispatch });
   };
 
-  // Face ID ile doğrulatıp açar
+  // Face ID ile doğrulatıp açar. İptal sessiz geçer; izin kapalı / tanınmadı gibi durumlarda nedeni gösterilir.
   const enableBiometric = async (label: string) => {
-    if (!(await biometricAuth.authenticate(`Turn on ${label}`))) return;
+    try {
+      if (!(await biometricAuth.authenticate(`Turn on ${label}`))) return;
+    } catch (e) {
+      if (!(e instanceof BiometricError)) throw e;
+      dialog.alert({ kicker: 'Security', title: `Could not turn on ${label}`, body: e.message });
+      return;
+    }
     await biometricAuth.markPromptShown();
     await biometricAuth.setEnabled(true);
   };

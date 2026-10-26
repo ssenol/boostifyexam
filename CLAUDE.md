@@ -80,10 +80,11 @@ Test altyapısı yok; doğrulama `npm run typecheck` + `npm run lint` + fiziksel
 app/
 ├── _layout.tsx          # Fontlar (Archivo), Redux Provider, PersistGate, Stack((main)|(auth))
 ├── (auth)/
-│   ├── _layout.tsx
-│   └── login.tsx        # Giriş yapılmışsa "/"'a Redirect
+│   ├── _layout.tsx      # initialRouteName: welcome
+│   ├── welcome.tsx      # Karşılama (splash mavisi, CEFR merdiveni), 2,2 sn sonra ya da dokununca login'e replace
+│   └── login.tsx        # Giriş yapılmışsa "/"'a Redirect (welcome da öyle)
 └── (main)/
-    ├── _layout.tsx      # Auth koruması: giriş yoksa "/login"'e Redirect. Tab bar YOK, Stack.
+    ├── _layout.tsx      # Auth koruması: giriş yoksa "/welcome"'a Redirect. Tab bar YOK, Stack.
     ├── index.tsx        # Assignments: Tests (GET /exams, view_result hariç; düğmeyi action belirler) / Results (GET /results)
     ├── profile.tsx      # Profil (GET /me), Security (biyometrik, mikrofon), çıkış
     ├── exam/[id]/

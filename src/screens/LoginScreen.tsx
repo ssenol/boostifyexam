@@ -1,18 +1,18 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
-import { useFocusEffect } from 'expo-router';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
+import { KeyboardAvoidingView, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
 import Logo from '../components/Logo';
 import Button from '../components/Button';
 import Dialog from '../components/Dialog';
 import { useDialog } from '../components/DialogProvider';
-import { toUpperCaseEn } from '../components/Kicker';
 import TextField from '../components/TextField';
 import useBottomSpacing from '../hooks/useBottomSpacing';
 import useResponsive from '../hooks/useResponsive';
 import authService from '../services/auth';
-import biometricAuth from '../services/biometricAuth';
+import biometricAuth, { BiometricError } from '../services/biometricAuth';
 import { useAppDispatch } from '../store/hooks';
 import { setCredentials } from '../store/slices/authSlice';
 import { theme } from '../theme';
@@ -21,23 +21,14 @@ import { ApiError, getErrorMessage, isApiError } from '../utils/errors';
 
 const { colors, fonts } = theme;
 
-const LEVELS = ['A1', 'A1+', 'A2', 'A2+', 'B1', 'B1+', 'B2', 'B2+', 'C1', 'C2'];
-// Placement ortadan (B1) başlar; progress öğrencinin son seviyesinden
-const START_LEVEL_INDEX = 4;
-
 // Geliştirmede form demo hesapla dolu gelir. Değerler git dışı .env.local'dan okunur (repoda şifre yok);
 // yayın build'inde __DEV__ false olduğu için boştur.
 const DEV_USERNAME = __DEV__ ? (process.env.EXPO_PUBLIC_DEV_USERNAME ?? '') : '';
 const DEV_PASSWORD = __DEV__ ? (process.env.EXPO_PUBLIC_DEV_PASSWORD ?? '') : '';
 
-const FACTS: [string, string][] = [
-  ['≤ 40', 'Questions'],
-  ['4', 'Skills + grammar'],
-  ['10', 'CEFR levels'],
-];
-
 export default function LoginScreen() {
   const dispatch = useAppDispatch();
+  const router = useRouter();
   const insets = useSafeAreaInsets();
   const bottom = useBottomSpacing();
   const { isTablet } = useResponsive();
@@ -148,8 +139,11 @@ export default function LoginScreen() {
       if (await biometricAuth.authenticate(`Turn on ${offer.label}`)) {
         await biometricAuth.setEnabled(true);
       }
-    } catch {
-      // Biyometrik açılamazsa giriş yine tamamlanır
+    } catch (e) {
+      // Biyometrik açılamazsa giriş yine tamamlanır; izin kapalı / tanınmadı gibi durumlarda nedeni gösterilir
+      if (e instanceof BiometricError) {
+        dialog.alert({ kicker: offer.label, title: `Could not turn on ${offer.label}`, body: `${e.message} You can turn it on later in your profile.` });
+      }
     } finally {
       await biometricAuth.markPromptShown().catch(() => {});
       setOfferBusy(false);
@@ -162,60 +156,6 @@ export default function LoginScreen() {
     await biometricAuth.markPromptShown().catch(() => {});
     enterApp(offer.session);
   };
-
-  const panel = (
-    // Tablette durum çubuğu ince (24 pt): logo saatin altına yapışmasın diye ek boşluk
-    <View style={[styles.panel, { paddingTop: isTablet ? insets.top + 40 : Math.max(24, insets.top) }]}>
-      <Logo variant="white" height={isTablet ? 32 : 26} />
-
-      <View style={styles.hero}>
-        <Text style={styles.kicker}>{toUpperCaseEn('Placement · Progress')}</Text>
-        <Text style={styles.heroTitle}>
-          Find your <Text style={styles.heroAccent}>level</Text>.
-        </Text>
-        <Text style={styles.heroText}>Adaptive English tests on the CEFR scale.</Text>
-      </View>
-
-      {isTablet && (
-        <View style={styles.ladderWrap}>
-          <View style={styles.ladderHeader}>
-            <Text style={styles.ladderKicker}>{toUpperCaseEn('CEFR scale')}</Text>
-            <Text style={styles.ladderNote}>Placement starts in the middle</Text>
-          </View>
-          <View style={styles.ladderBars}>
-            {LEVELS.map((name, i) => (
-              <View
-                key={name}
-                style={[
-                  styles.ladderBar,
-                  { height: 16 + i * 16, backgroundColor: i === START_LEVEL_INDEX ? colors.success : colors.accent300 },
-                ]}
-              />
-            ))}
-          </View>
-          <View style={styles.ladderLabels}>
-            {LEVELS.map((name, i) => (
-              <Text
-                key={name}
-                style={[styles.ladderLabel, i === START_LEVEL_INDEX && styles.ladderLabelActive]}
-              >
-                {name}
-              </Text>
-            ))}
-          </View>
-        </View>
-      )}
-
-      <View style={styles.facts}>
-        {FACTS.map(([value, label], i) => (
-          <View key={label} style={[styles.fact, i > 0 && styles.factDivided]}>
-            <Text style={styles.factValue} numberOfLines={1}>{value}</Text>
-            <Text style={styles.factLabel} numberOfLines={1}>{label}</Text>
-          </View>
-        ))}
-      </View>
-    </View>
-  );
 
   const form = (
     <View style={styles.form}>
@@ -287,38 +227,31 @@ export default function LoginScreen() {
     />
   );
 
-  // Tablet: panel ve form yerinde durur. Klavye ancak odaktaki alanı kapatırsa form kendi içinde kayar: iOS'ta
-  // ScrollView'ın klavye payı (automaticallyAdjustKeyboardInsets), Android'de pencere klavyeyle küçülmediği için
-  // yalnızca form sütununa verilen pay.
-  if (isTablet) {
-    return (
-      <View style={[styles.root, styles.tabletRow]}>
-        {panel}
-        <KeyboardAvoidingView style={styles.formColumn} behavior="padding" enabled={Platform.OS === 'android'}>
-          <ScrollView
-            contentContainerStyle={[styles.formScroll, { paddingBottom: bottom(24) }]}
-            keyboardShouldPersistTaps="handled"
-            automaticallyAdjustKeyboardInsets
-          >
-            {form}
-          </ScrollView>
-        </KeyboardAvoidingView>
-        {offerDialog}
-      </View>
-    );
-  }
-
   return (
     // Ekranın kökünde (y = 0) olduğu için "padding" iki platformda da doğru hesaplar. Android'in "height" modu ilk
     // yüksekliği sakladığından cihaz döndürülünce yanlış çalışıyordu.
     <KeyboardAvoidingView style={styles.root} behavior="padding">
+      {/* Welcome'ın açık durum çubuğu replace sonrası kalıyordu */}
+      <StatusBar style="dark" />
       <ScrollView
-        contentContainerStyle={{ paddingBottom: bottom(24) }}
+        contentContainerStyle={[styles.scroll, { paddingTop: insets.top + 24, paddingBottom: bottom(24) }]}
         keyboardShouldPersistTaps="handled"
         bounces={false}
       >
-        {panel}
-        <View style={styles.formScroll}>{form}</View>
+        <View style={styles.column}>
+          <Logo height={isTablet ? 30 : 24} />
+          {form}
+        </View>
+        {/* Welcome kendini replace ile login'e çevirdiği için burada da replace: stack'te tek ekran kalır */}
+        <Pressable
+          style={styles.backLink}
+          onPress={() => router.replace('/welcome')}
+          disabled={loading || biometricLoading}
+          hitSlop={12}
+          accessibilityRole="link"
+        >
+          <Text style={styles.backLinkText}>← Back to welcome</Text>
+        </Pressable>
       </ScrollView>
       {offerDialog}
     </KeyboardAvoidingView>
@@ -333,124 +266,20 @@ const createStyles = (isTablet: boolean) => {
       flex: 1,
       backgroundColor: colors.bg,
     },
-    formColumn: {
-      flex: 1,
-    },
-    tabletRow: {
-      flex: 1,
-      flexDirection: 'row',
-    },
-    panel: {
-      backgroundColor: colors.accent,
-      paddingHorizontal: padX,
-      paddingBottom: isTablet ? 40 : 24,
-      ...(isTablet && { width: '50%' }),
-    },
-    hero: {
-      marginTop: isTablet ? 72 : 32,
-      gap: 12,
-      maxWidth: 460,
-    },
-    kicker: {
-      fontFamily: fonts.semiBold,
-      fontSize: 11,
-      letterSpacing: 1.3,
-      color: colors.bg,
-    },
-    heroTitle: {
-      fontFamily: fonts.extraBold,
-      fontSize: isTablet ? 56 : 36,
-      lineHeight: isTablet ? 57 : 37,
-      letterSpacing: isTablet ? -1.1 : -0.7,
-      color: colors.bg,
-    },
-    // Logodaki "exam" gibi tek kelime turuncu
-    heroAccent: {
-      color: colors.primary,
-    },
-    heroText: {
-      fontFamily: fonts.regular,
-      fontSize: 16,
-      lineHeight: 24,
-      color: colors.bg,
-    },
-    ladderWrap: {
-      marginTop: 'auto',
-      gap: 12,
-    },
-    ladderHeader: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'baseline',
-    },
-    ladderKicker: {
-      fontFamily: fonts.semiBold,
-      fontSize: 12,
-      letterSpacing: 1.4,
-      color: colors.bg,
-    },
-    ladderNote: {
-      fontFamily: fonts.regular,
-      fontSize: 12,
-      color: colors.bg,
-    },
-    ladderBars: {
-      height: 160,
-      flexDirection: 'row',
-      alignItems: 'flex-end',
-      gap: 4,
-    },
-    ladderBar: {
-      flex: 1,
-    },
-    ladderLabels: {
-      flexDirection: 'row',
-      gap: 4,
-    },
-    ladderLabel: {
-      flex: 1,
-      fontFamily: fonts.regular,
-      fontSize: 12,
-      color: colors.bg,
-    },
-    ladderLabelActive: {
-      fontFamily: fonts.extraBold,
-    },
-    facts: {
-      marginTop: isTablet ? 32 : 28,
-      flexDirection: 'row',
-      borderTopWidth: 2,
-      borderTopColor: colors.bg,
-    },
-    fact: {
-      flex: 1,
-      paddingTop: 12,
-      gap: 6,
-    },
-    factDivided: {
-      paddingLeft: 12,
-      borderLeftWidth: 1,
-      borderLeftColor: colors.accent300,
-    },
-    factValue: {
-      fontFamily: fonts.extraBold,
-      fontSize: isTablet ? 28 : 22,
-      color: colors.bg,
-    },
-    factLabel: {
-      fontFamily: fonts.regular,
-      fontSize: 12,
-      color: colors.bg,
-    },
-    formScroll: {
+    scroll: {
       flexGrow: 1,
-      justifyContent: isTablet ? 'center' : 'flex-start',
       paddingHorizontal: padX,
-      paddingTop: 32,
+    },
+    // Logo + form kalan alanın ortasında, bağlantı en altta; klavye açılınca alan küçülür ve birlikte yukarı çıkar
+    column: {
+      marginVertical: 'auto',
+      width: '100%',
+      maxWidth: 400,
+      alignSelf: 'center',
+      gap: isTablet ? 48 : 40,
     },
     form: {
       width: '100%',
-      maxWidth: 400,
       gap: 16,
     },
     formHeader: {
@@ -472,6 +301,15 @@ const createStyles = (isTablet: boolean) => {
     actions: {
       gap: 8,
       marginTop: 8,
+    },
+    backLink: {
+      alignSelf: 'center',
+      marginTop: 32,
+    },
+    backLinkText: {
+      fontFamily: fonts.semiBold,
+      fontSize: 14,
+      color: colors.neutral700,
     },
   });
 };

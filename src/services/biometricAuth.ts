@@ -28,6 +28,12 @@ export interface BiometricAvailability {
   label: string;
 }
 
+// Face ID / parmak izi iptal dışında bir nedenle başarısız oldu; message öğrenciye gösterilecek İngilizce metin
+export class BiometricError extends Error {}
+
+// Kullanıcı ya da sistem pencereyi kapattı: açıklama gösterilmez
+const CANCEL_ERRORS: LocalAuthentication.LocalAuthenticationError[] = ['user_cancel', 'system_cancel', 'app_cancel', 'user_fallback'];
+
 // iOS Keychain uygulama silinince temizlenmez: işaret yoksa (ilk açılış / yeniden kurulum) önceki kurulumdan
 // kalan bilgiler silinir
 let storageReady: Promise<void> | null = null;
@@ -54,6 +60,26 @@ async function getLabel(): Promise<string> {
   return 'Biometrics';
 }
 
+async function failureMessage(error: LocalAuthentication.LocalAuthenticationError): Promise<string> {
+  const label = await getLabel();
+  switch (error) {
+    // iOS'ta uygulamanın Face ID izni reddedilmiş (Ayarlar > uygulama > Face ID)
+    case 'not_available':
+      return Platform.OS === 'ios'
+        ? `${label} is turned off for BoostifyExam. Turn it on in Settings > BoostifyExam.`
+        : `${label} is not available on this device right now.`;
+    case 'not_enrolled':
+    case 'passcode_not_set':
+      return `Set up ${label} in your device settings first.`;
+    case 'lockout':
+      return `${label} is locked after too many attempts. Unlock your device with your passcode, then try again.`;
+    case 'authentication_failed':
+      return `${label} did not recognize you. Try again.`;
+    default:
+      return `${label} could not be used. Try again.`;
+  }
+}
+
 class BiometricAuthService {
   async getAvailability(): Promise<BiometricAvailability> {
     try {
@@ -66,14 +92,16 @@ class BiometricAuthService {
     }
   }
 
-  // Sistemin Face ID / parmak izi penceresi. İptal ya da başarısızlıkta false.
+  // Sistemin Face ID / parmak izi penceresi. Başarıda true, iptalde false; diğer hatalarda BiometricError.
   async authenticate(promptMessage: string): Promise<boolean> {
     const result = await LocalAuthentication.authenticateAsync({
       promptMessage,
       cancelLabel: 'Cancel',
       disableDeviceFallback: false,
     });
-    return result.success;
+    if (result.success) return true;
+    if (CANCEL_ERRORS.includes(result.error)) return false;
+    throw new BiometricError(await failureMessage(result.error));
   }
 
   async isEnabled(): Promise<boolean> {
