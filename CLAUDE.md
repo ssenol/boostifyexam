@@ -65,6 +65,10 @@ BS / BW ile birebir aynı standart: `~/.claude/notes/expo-dev-varyant.md`.
   (iki varyantta aynı). Figma çıktıları `_calismalar/` (`ios-icon-light/dark.png`, `android-icon.png`). Dev ikonları
   elle düzenlenmez: normal ikon değişince `npm run icons:dev` (`dev-badge.png` bindirilir) → `npm run prebuild:dev`.
 - Dev araçları `__DEV__` yerine `IS_DEV_MODE` (`src/config/env.ts`) ile sarılır.
+- **TestFlight:** `npx eas-cli build -p ios --profile production --auto-submit` (etkileşimli, kullanıcı çalıştırır).
+  Build numarası EAS'te artar (`appVersionSource: remote`); sürüm `app.config.js` → `version`. App Store Connect
+  ID 6827877844 (`eas.json` → `submit`), Ues Tech takımı, Speak/Write ile aynı sertifika ve ASC API anahtarı.
+  "Team (Expo)" TestFlight grubu yeni build'i kendiliğinden alır. İlk yükleme 28.10.2026.
 - `react-native-worklets` / `react-native-reanimated` `package.json`'da **açıkça ve SDK sürümünde** durmalı
   (`npx expo install`; şu an 0.10.1 / 4.5.1, BS/BW ile aynı). Yoksa expo-router üzerinden daha yeni bir worklets (0.13)
   gelir, `expo-modules-core` onu desteklemez ve uygulama açılışta splash'te çöker
